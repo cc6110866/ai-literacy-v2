@@ -299,9 +299,10 @@ export default function Learn() {
         ))}
       </div>
 
-      {/* 字卡 */}
+      {/* 字卡 - 点击即下一个 */}
       <div className="px-5 pt-2 transition-all duration-300" style={{ opacity: isAnimating ? 0 : 1, transform: isAnimating ? 'scale(0.95)' : 'scale(1)' }}>
-        <div className="bg-white rounded-3xl overflow-hidden shadow-lg max-w-md mx-auto">
+        <div onClick={nextChar}
+          className="bg-white rounded-3xl overflow-hidden shadow-lg max-w-md mx-auto active:scale-[0.98] transition-transform cursor-pointer">
           {/* 汉字区 */}
           <div className="relative px-8 py-10 text-center bg-gradient-to-br from-orange-50 to-amber-50">
             {phase === 'review' && (
@@ -314,10 +315,12 @@ export default function Learn() {
               <div className="text-[100px] font-bold text-gray-800 leading-none select-none">{currentChar.character}</div>
               <div className="text-2xl font-medium text-orange-500 mt-3">{currentChar.pinyin}</div>
             </div>
+            {/* 底部提示 */}
+            <div className="mt-4 text-xs text-gray-300">点击继续 →</div>
           </div>
 
           {/* 内容区 */}
-          <div className="p-5">
+          <div className="p-5" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-start gap-3 mb-3">
               <div className="w-8 h-8 rounded-xl bg-amber-50 flex items-center justify-center flex-shrink-0">
                 <Lightbulb size={18} className="text-amber-500" />
@@ -329,7 +332,7 @@ export default function Learn() {
               <span className="flex items-center gap-1"><Tag size={14} /> {currentChar.category}</span>
               <span className="flex items-center gap-1"><Layers size={14} /> L{currentChar.level}</span>
             </div>
-            <button onClick={() => setShowStory(!showStory)}
+            <button onClick={(e) => { e.stopPropagation(); setShowStory(!showStory) }}
               className="w-full py-3.5 rounded-2xl font-semibold text-base bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-lg shadow-purple-500/30 flex items-center justify-center gap-2">
               <Eye size={18} />
               {showStory ? '收起故事' : '听故事学字'}
@@ -339,32 +342,14 @@ export default function Learn() {
                 <p className="text-sm text-gray-700 leading-relaxed">{currentChar.story || `${currentChar.character}的故事正在生成中...`}</p>
               </div>
             )}
-            <button onClick={() => markViewed(currentChar.id)}
-              className={`w-full mt-3 py-3.5 rounded-2xl font-semibold text-base flex items-center justify-center gap-2 ${
-                learned.has(currentChar.id)
-                  ? 'bg-green-50 text-green-600 border-2 border-green-200'
-                  : 'bg-gray-50 text-gray-700'
-              }`}>
-              <CheckCircle2 size={18} />
-              {learned.has(currentChar.id) ? '已学会！' : '我认识这个字'}
-            </button>
           </div>
         </div>
 
-        {/* 导航 */}
-        <div className="flex gap-4 mt-5 max-w-md mx-auto mb-6">
+        {/* 只保留"上一个"按钮 */}
+        <div className="flex justify-start mt-5 max-w-md mx-auto mb-6">
           <button onClick={prevChar} disabled={currentIndex === 0}
-            className={`w-14 h-14 rounded-full bg-white shadow-md flex items-center justify-center ${currentIndex === 0 ? 'opacity-30' : 'hover:shadow-lg'}`}>
+            className={`w-14 h-14 rounded-full bg-white shadow-md flex items-center justify-center ${currentIndex === 0 ? 'opacity-0 pointer-events-none' : 'hover:shadow-lg active:scale-95'}`}>
             <ChevronLeft size={20} className="text-gray-700" />
-          </button>
-          <button onClick={nextChar}
-            className="flex-1 h-14 rounded-full font-bold text-base bg-gradient-to-r from-orange-500 to-amber-400 text-white shadow-lg shadow-orange-500/30 flex items-center justify-center gap-2">
-            {phase === 'review' ? '下一个复习' : '下一个'}
-            <ChevronRight size={18} />
-          </button>
-          <button onClick={nextChar} disabled={currentIndex >= chars.length - 1}
-            className={`w-14 h-14 rounded-full bg-white shadow-md flex items-center justify-center ${currentIndex >= chars.length - 1 ? 'opacity-30' : 'hover:shadow-lg'}`}>
-            <ChevronRight size={20} className="text-gray-700" />
           </button>
         </div>
       </div>
