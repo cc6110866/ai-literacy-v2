@@ -105,12 +105,34 @@ export default function Learn() {
     setLearned(prev => new Set(prev).add(charId))
     const learnedStr = localStorage.getItem('ai-literacy-learned') || '[]'
     const learnedIds: number[] = JSON.parse(learnedStr)
-    if (!learnedIds.includes(charId)) { learnedIds.push(charId); localStorage.setItem('ai-literacy-learned', JSON.stringify(learnedIds)) }
+    const isNew = !learnedIds.includes(charId)
+    if (isNew) { learnedIds.push(charId); localStorage.setItem('ai-literacy-learned', JSON.stringify(learnedIds)) }
     const progressStr = localStorage.getItem('ai-literacy-progress') || '{}'
     const progress: Record<number, { nextReview: number; status: string; count: number }> = JSON.parse(progressStr)
-    progress[charId] = { nextReview: Date.now() + 3600000, status: 'learning', count: (progress[charId]?.count || 0) + 1 }
+    const newCount = (progress[charId]?.count || 0) + 1
+    progress[charId] = { nextReview: Date.now() + 3600000, status: newCount >= 5 ? 'mastered' : 'learning', count: newCount }
     localStorage.setItem('ai-literacy-progress', JSON.stringify(progress))
-    fetch(`${API}/api/progress`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId, characterId: charId, status: 'learning', practiceCount: 1, correctCount: 1, isCorrect: true }) }).catch(() => {})
+
+    // 同步首页需要的今日数据
+    const today = new Date().toISOString().slice(0, 10)
+    const todayKey = `ai-literacy-today-learned-${today}`
+    const todayIds: number[] = JSON.parse(localStorage.getItem(todayKey) || '[]')
+    if (!todayIds.includes(charId)) { todayIds.push(charId); localStorage.setItem(todayKey, JSON.stringify(todayIds)) }
+
+    // 更新连续学习天数
+    const lastStudyDate = localStorage.getItem('ai-literacy-last-study-date') || ''
+    const yesterday = new Date(); yesterday.setDate(yesterday.getDate() - 1)
+    const yesterdayStr = yesterday.toISOString().slice(0, 10)
+    let streak = parseInt(localStorage.getItem('ai-literacy-streak') || '0')
+    if (lastStudyDate === yesterdayStr || lastStudyDate === today) {
+      if (lastStudyDate !== today) streak++
+      localStorage.setItem('ai-literacy-streak', String(streak))
+    } else if (lastStudyDate !== today) {
+      localStorage.setItem('ai-literacy-streak', '1')
+    }
+    localStorage.setItem('ai-literacy-last-study-date', today)
+
+    fetch(`${API}/api/progress`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId, characterId: charId, status: newCount >= 5 ? 'mastered' : 'learning', practiceCount: 1, correctCount: 1, isCorrect: true }) }).catch(() => {})
   }, [userId])
 
   const nextChar = () => {

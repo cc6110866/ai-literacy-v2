@@ -19,23 +19,50 @@ export default function Home() {
       try {
         const uid = localStorage.getItem('ai-literacy-uid') || ''
         if (!uid) return
-        const res = await fetch(`/api/progress?userId=${uid}`)
-        const data: any = await res.json()
-        if (data.success) {
-          const p = data.data
-          let lv = 1
-          if (p.totalLearned >= 960) lv = 4
-          else if (p.totalLearned >= 195) lv = 3
-          else if (p.totalLearned >= 30) lv = 2
-          setStats({
-            totalLearned: p.totalLearned, totalChars: 1862,
-            todayLearned: p.today.newCount + p.today.reviewCount,
-            todayTarget: parseInt(localStorage.getItem('ai-literacy-daily-target') || '5'),
-            streak: p.streak, mastered: p.mastered, dueReview: p.dueReview,
-            currentLevel: lv, correctRate: p.today.correctRate,
-            weekHistory: (p.weekHistory || []).map((d: any) => ({ date: d.date, count: d.newCount + d.reviewCount })),
-          })
-        }
+
+        // 主数据源：localStorage（与识字页一致）
+        const learnedStr = localStorage.getItem('ai-literacy-learned') || '[]'
+        const learnedIds: number[] = JSON.parse(learnedStr)
+        const progressStr = localStorage.getItem('ai-literacy-progress') || '{}'
+        const progress: Record<string, { nextReview: number; status: string; count: number }> = JSON.parse(progressStr)
+        const now = Date.now()
+
+        const totalLearned = learnedIds.length
+        const mastered = learnedIds.filter(id => progress[id]?.status === 'mastered' || (progress[id]?.count || 0) >= 5).length
+        const dueReview = learnedIds.filter(id => {
+          const p = progress[id]
+          return p && p.status !== 'mastered' && p.nextReview && p.nextReview <= now
+        }).length
+
+        // 连续学习天数
+        const streakStr = localStorage.getItem('ai-literacy-streak') || '0'
+        const streak = parseInt(streakStr) || 0
+
+        // 今日已学
+        const today = new Date().toISOString().slice(0, 10)
+        const todayKey = `ai-literacy-today-learned-${today}`
+        const todayLearnedStr = localStorage.getItem(todayKey) || '[]'
+        const todayLearnedIds: number[] = JSON.parse(todayLearnedStr)
+        const todayLearned = todayLearnedIds.length
+
+        // 今日正确率
+        const todayCorrectStr = localStorage.getItem(`ai-literacy-today-correct-${today}`) || '0'
+        const todayTotalStr = localStorage.getItem(`ai-literacy-today-total-${today}`) || '0'
+        const correctRate = parseInt(todayTotalStr) > 0 ? parseInt(todayCorrectStr) / parseInt(todayTotalStr) : 0
+
+        let lv = 1
+        if (totalLearned >= 960) lv = 4
+        else if (totalLearned >= 195) lv = 3
+        else if (totalLearned >= 30) lv = 2
+
+        setStats({
+          totalLearned, totalChars: 1862,
+          todayLearned,
+          todayTarget: parseInt(localStorage.getItem('ai-literacy-daily-target') || '5'),
+          streak, mastered, dueReview,
+          currentLevel: lv, correctRate,
+          weekHistory: [], // localStorage 暂不存周历史，后续可补充
+        })
       } catch {} finally { setLoading(false) }
     }
     load()
