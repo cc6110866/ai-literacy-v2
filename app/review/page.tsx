@@ -15,34 +15,44 @@ export default function Review() {
   const [results, setResults] = useState<{ charId: number; correct: boolean }[]>([])
   const [loading, setLoading] = useState(true)
   const [finished, setFinished] = useState(false)
-  const [userId, setUserId] = useState('anonymous')
+  const [userId] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('ai-literacy-uid') || 'anonymous'
+    }
+    return 'anonymous'
+  })
 
   const API = ''
 
-  useEffect(() => { setUserId(localStorage.getItem('ai-literacy-uid') || 'anonymous') }, [])
+  async function loadReview() {
+    setLoading(true)
+    try {
+      const progressStr = localStorage.getItem('ai-literacy-progress') || '{}'
+      const progress: Record<number, { nextReview: number; status: string }> = JSON.parse(progressStr)
+      const now = Date.now()
+      const dueIds: number[] = []
+      for (const [idStr, p] of Object.entries(progress)) {
+        if (p.status !== 'mastered' && p.nextReview && p.nextReview <= now) dueIds.push(parseInt(idStr))
+      }
+      if (dueIds.length > 0) {
+        const res = await fetch(`${API}/api/characters?mode=all&limit=200`)
+        const data: any = await res.json()
+        if (data.success) {
+          const due = data.data.filter((c: CharData) => dueIds.includes(c.id))
+          setReviewChars(due.slice(0, 20))
+        }
+      } else {
+        setReviewChars([])
+      }
+    } catch {} finally { setLoading(false) }
+  }
 
-  useEffect(() => {
-    async function loadReview() {
-      try {
-        const progressStr = localStorage.getItem('ai-literacy-progress') || '{}'
-        const progress: Record<number, { nextReview: number; status: string }> = JSON.parse(progressStr)
-        const now = Date.now()
-        const dueIds: number[] = []
-        for (const [idStr, p] of Object.entries(progress)) {
-          if (p.status !== 'mastered' && p.nextReview && p.nextReview <= now) dueIds.push(parseInt(idStr))
-        }
-        if (dueIds.length > 0) {
-          const res = await fetch(`${API}/api/characters?mode=all&limit=50`)
-          const data: any = await res.json()
-          if (data.success) {
-            const due = data.data.filter((c: CharData) => dueIds.includes(c.id))
-            setReviewChars(due.slice(0, 15))
-          }
-        }
-      } catch {} finally { setLoading(false) }
-    }
+  const restartReview = () => {
+    setCurrentIndex(0); setResults([]); setFinished(false); setShowAnswer(false)
     loadReview()
-  }, [])
+  }
+
+  useEffect(() => { loadReview() }, [])
 
   const handleResult = (correct: boolean) => {
     const char = reviewChars[currentIndex]
@@ -54,13 +64,19 @@ export default function Review() {
     const count = progress[char.id]?.count || 0
     if (correct) {
       const intervalIndex = Math.min(count, intervals.length - 1)
-      progress[char.id] = { nextReview: Date.now() + intervals[intervalIndex], status: count >= 5 ? 'mastered' : 'learning', count: count + 1 }
+      progress[char.id] = { nextReview: Date.now() + intervals[intervalIndex], status: count >= 4 ? 'mastered' : 'learning', count: count + 1 }
     } else {
-      progress[char.id] = { nextReview: Date.now() + intervals[0], status: 'learning', count: 0 }
+      // 答错了：保留 count 但回到最短间隔重新复习
+      progress[char.id] = { nextReview: Date.now() + intervals[0], status: 'learning', count: Math.max(0, count - 1) }
     }
     localStorage.setItem('ai-literacy-progress', JSON.stringify(progress))
     const reviewCnt = parseInt(localStorage.getItem('ai-literacy-review-count') || '0') + 1
     localStorage.setItem('ai-literacy-review-count', String(reviewCnt))
+    // 同步今日复习计数
+    const today = new Date().toISOString().slice(0, 10)
+    const todayReviewKey = `ai-literacy-today-review-count-${today}`
+    const todayReviewCnt = parseInt(localStorage.getItem(todayReviewKey) || '0') + 1
+    localStorage.setItem(todayReviewKey, String(todayReviewCnt))
     fetch(`${API}/api/progress`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId, characterId: char.id, status: 'learning', practiceCount: 1, correctCount: correct ? 1 : 0, isCorrect: correct }) }).catch(() => {})
     if (currentIndex < reviewChars.length - 1) { setCurrentIndex(i => i + 1); setShowAnswer(false) }
     else { setFinished(true) }
@@ -77,7 +93,7 @@ export default function Review() {
           <Image src="/images/icon-review.webp" alt="" width={80} height={80} className="mb-4 opacity-60" />
           <p className="text-gray-400">正在准备复习...</p>
         </div>
-        <BottomNav active="home" />
+        <BottomNav active="review" />
       </div>
     )
   }
@@ -96,7 +112,7 @@ export default function Review() {
             </div>
           </div>
         </div>
-        <BottomNav active="home" />
+        <BottomNav active="review" />
       </div>
     )
   }
@@ -119,11 +135,15 @@ export default function Review() {
             </div>
             <div className="flex gap-3">
               <Link href="/learn" className="flex-1 py-4 rounded-2xl bg-orange-500 text-white font-bold text-center">学新字</Link>
+              <button onClick={restartReview}
+                className="flex-1 py-4 rounded-2xl bg-gradient-to-r from-purple-500 to-indigo-500 text-white font-bold">
+                再来一轮
+              </button>
               <Link href="/" className="flex-1 py-4 rounded-2xl bg-orange-100 text-gray-700 font-bold text-center">首页</Link>
             </div>
           </div>
         </div>
-        <BottomNav active="home" />
+        <BottomNav active="review" />
       </div>
     )
   }
@@ -186,7 +206,7 @@ export default function Review() {
         </div>
       </div>
 
-      <BottomNav active="home" />
+      <BottomNav active="review" />
     </div>
   )
 }

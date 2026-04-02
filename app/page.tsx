@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
-import { BookOpen, PencilLine, Trophy, Settings, Flame, Target, Sparkles } from 'lucide-react'
+import { BookOpen, PencilLine, Trophy, Settings, Flame, Target, Sparkles, RotateCcw } from 'lucide-react'
 import BottomNav from '../components/BottomNav'
 
 export default function Home() {
@@ -45,15 +45,27 @@ export default function Home() {
         const todayLearnedIds: number[] = JSON.parse(todayLearnedStr)
         const todayLearned = todayLearnedIds.length
 
+        // 本周历史（从 localStorage 每日记录计算）
+        const weekHistory: { date: string; count: number }[] = []
+        const todayDate = new Date()
+        for (let i = 6; i >= 0; i--) {
+          const d = new Date(todayDate); d.setDate(d.getDate() - i)
+          const dateStr = d.toISOString().slice(0, 10)
+          const dayKey = `ai-literacy-today-learned-${dateStr}`
+          const dayIds: number[] = JSON.parse(localStorage.getItem(dayKey) || '[]')
+          const dayReview = parseInt(localStorage.getItem(`ai-literacy-today-review-count-${dateStr}`) || '0')
+          weekHistory.push({ date: dateStr, count: dayIds.length + dayReview })
+        }
+
         // 今日正确率
         const todayCorrectStr = localStorage.getItem(`ai-literacy-today-correct-${today}`) || '0'
         const todayTotalStr = localStorage.getItem(`ai-literacy-today-total-${today}`) || '0'
         const correctRate = parseInt(todayTotalStr) > 0 ? parseInt(todayCorrectStr) / parseInt(todayTotalStr) : 0
 
         let lv = 1
-        if (totalLearned >= 960) lv = 4
-        else if (totalLearned >= 195) lv = 3
-        else if (totalLearned >= 30) lv = 2
+        if (totalLearned >= 1738) lv = 4
+        else if (totalLearned >= 960) lv = 3
+        else if (totalLearned >= 169) lv = 2
 
         setStats({
           totalLearned, totalChars: 1862,
@@ -61,7 +73,7 @@ export default function Home() {
           todayTarget: parseInt(localStorage.getItem('ai-literacy-daily-target') || '5'),
           streak, mastered, dueReview,
           currentLevel: lv, correctRate,
-          weekHistory: [], // localStorage 暂不存周历史，后续可补充
+          weekHistory,
         })
       } catch {} finally { setLoading(false) }
     }
@@ -132,7 +144,7 @@ export default function Home() {
           {[
             { href: '/learn', icon: BookOpen, label: '识字', bg: 'bg-blue-50', color: 'text-blue-500' },
             { href: '/practice', icon: PencilLine, label: '练习', bg: 'bg-purple-50', color: 'text-purple-500' },
-            { href: '/achievement', icon: Trophy, label: '成就', bg: 'bg-amber-50', color: 'text-amber-500' },
+            { href: '/review', icon: RotateCcw, label: '复习', bg: 'bg-pink-50', color: 'text-pink-500' },
           ].map((item) => {
             const Icon = item.icon
             return (

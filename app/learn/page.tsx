@@ -22,6 +22,7 @@ export default function Learn() {
   const [isAnimating, setIsAnimating] = useState(false)
   const [loading, setLoading] = useState(true)
   const [learned, setLearned] = useState<Set<number>>(new Set())
+  const [markedChars, setMarkedChars] = useState<Set<number>>(new Set()) // 记录已提交到 localStorage 的字，防止重复提交
   const [currentTopic, setCurrentTopic] = useState('')
   const [currentLevel, setCurrentLevel] = useState(1)
   const [reviewCompleted, setReviewCompleted] = useState(0)
@@ -51,7 +52,7 @@ export default function Learn() {
           if (p.status !== 'mastered' && p.nextReview && p.nextReview <= now) dueIds.push(parseInt(idStr))
         }
         if (dueIds.length > 0) {
-          const allRes = await fetch(`${API}/api/characters?mode=all&limit=100`)
+          const allRes = await fetch(`${API}/api/characters?mode=all&limit=200`)
           const allData: any = await allRes.json()
           if (allData.success) {
             const reviewSet = allData.data.filter((c: CharData) => dueIds.includes(c.id))
@@ -63,17 +64,29 @@ export default function Learn() {
     }
     async function loadNewChars(learnedIds: number[]) {
       const today = new Date().toISOString().slice(0, 10)
+      const dailyTarget = parseInt(localStorage.getItem('ai-literacy-daily-target') || '5')
       const cached = localStorage.getItem(`ai-literacy-today-${today}`)
+      const forceLevel = parseInt(localStorage.getItem('ai-literacy-force-level') || '0')
       if (cached) {
         const data = JSON.parse(cached)
-        if (data.chars && data.chars.length > 0) { setNewChars(data.chars); setCurrentTopic(data.topic); setCurrentLevel(data.level); setPhase('learn'); return }
+        if (data.chars && data.chars.length > 0) {
+          // 检查缓存级别是否与当前设置一致，或每日目标是否变化
+          const levelMismatch = forceLevel !== 0 && data.level !== forceLevel
+          const targetMismatch = data.dailyTarget && data.dailyTarget !== dailyTarget
+          if (levelMismatch || targetMismatch) {
+            localStorage.removeItem(`ai-literacy-today-${today}`) // 设置变了，清缓存
+          } else {
+            const allLearned = data.chars.every((c: any) => learnedIds.includes(c.id))
+            if (!allLearned) {
+              setNewChars(data.chars); setCurrentTopic(data.topic); setCurrentLevel(data.level); setPhase('learn'); return
+            }
+          }
+        }
       }
-      const forceLevel = parseInt(localStorage.getItem('ai-literacy-force-level') || '0')
-      const dailyTarget = parseInt(localStorage.getItem('ai-literacy-daily-target') || '5')
       let targetLevel = forceLevel
       if (targetLevel === 0) {
         const total = learnedIds.length
-        if (total >= 960) targetLevel = 4; else if (total >= 195) targetLevel = 3; else if (total >= 30) targetLevel = 2; else targetLevel = 1
+        if (total >= 1738) targetLevel = 4; else if (total >= 960) targetLevel = 3; else if (total >= 169) targetLevel = 2; else targetLevel = 1
       }
       const res = await fetch(`${API}/api/characters?mode=level&level=${targetLevel}&limit=50`)
       const data: any = await res.json()
@@ -82,7 +95,7 @@ export default function Learn() {
         if (unlearned.length > 0) {
           const todayChars = unlearned.slice(0, dailyTarget)
           setNewChars(todayChars); setCurrentTopic(todayChars[0]?.topic_group || ''); setCurrentLevel(todayChars[0]?.level || targetLevel)
-          localStorage.setItem(`ai-literacy-today-${today}`, JSON.stringify({ chars: todayChars, topic: todayChars[0]?.topic_group || '', level: todayChars[0]?.level || targetLevel }))
+          localStorage.setItem(`ai-literacy-today-${today}`, JSON.stringify({ chars: todayChars, topic: todayChars[0]?.topic_group || '', level: todayChars[0]?.level || targetLevel, dailyTarget }))
         } else if (targetLevel < 4) {
           const nextRes = await fetch(`${API}/api/characters?mode=level&level=${targetLevel + 1}&limit=50`)
           const nextData: any = await nextRes.json()
@@ -91,7 +104,7 @@ export default function Learn() {
             if (nextUnlearned.length > 0) {
               const todayChars = nextUnlearned.slice(0, dailyTarget)
               setNewChars(todayChars); setCurrentTopic(todayChars[0]?.topic_group || ''); setCurrentLevel(targetLevel + 1)
-              localStorage.setItem(`ai-literacy-today-${today}`, JSON.stringify({ chars: todayChars, topic: todayChars[0]?.topic_group || '', level: targetLevel + 1 }))
+              localStorage.setItem(`ai-literacy-today-${today}`, JSON.stringify({ chars: todayChars, topic: todayChars[0]?.topic_group || '', level: targetLevel + 1, dailyTarget }))
             }
           }
         }
@@ -101,7 +114,12 @@ export default function Learn() {
     loadData()
   }, [])
 
-  const markLearned = useCallback((charId: number) => {
+  const markViewed = useCallback((charId: number) => {
+    // 仅视觉标记，不写 localStorage（由 nextChar 统一写入）
+    setLearned(prev => new Set(prev).add(charId))
+  }, [])
+
+  const markLearned = useCallback((charId: number, isReview: boolean = false) => {
     setLearned(prev => new Set(prev).add(charId))
     const learnedStr = localStorage.getItem('ai-literacy-learned') || '[]'
     const learnedIds: number[] = JSON.parse(learnedStr)
@@ -109,8 +127,18 @@ export default function Learn() {
     if (isNew) { learnedIds.push(charId); localStorage.setItem('ai-literacy-learned', JSON.stringify(learnedIds)) }
     const progressStr = localStorage.getItem('ai-literacy-progress') || '{}'
     const progress: Record<number, { nextReview: number; status: string; count: number }> = JSON.parse(progressStr)
-    const newCount = (progress[charId]?.count || 0) + 1
-    progress[charId] = { nextReview: Date.now() + 3600000, status: newCount >= 5 ? 'mastered' : 'learning', count: newCount }
+    const existingCount = progress[charId]?.count || 0
+    const newCount = existingCount + 1
+
+    if (isReview) {
+      // 复习阶段：用艾宾浩斯间隔，答对增加间隔
+      const intervals = [3600000, 86400000, 259200000, 604800000, 1296000000, 2592000000]
+      const intervalIndex = Math.min(existingCount, intervals.length - 1)
+      progress[charId] = { nextReview: Date.now() + intervals[intervalIndex], status: newCount >= 5 ? 'mastered' : 'learning', count: newCount }
+    } else {
+      // 新学阶段：每次 +1，nextReview 1小时后
+      progress[charId] = { nextReview: Date.now() + 3600000, status: newCount >= 5 ? 'mastered' : 'learning', count: newCount }
+    }
     localStorage.setItem('ai-literacy-progress', JSON.stringify(progress))
 
     // 同步首页需要的今日数据
@@ -132,13 +160,33 @@ export default function Learn() {
     }
     localStorage.setItem('ai-literacy-last-study-date', today)
 
+    // 同步今日正确率（识字页默认答对）
+    const correctKey = `ai-literacy-today-correct-${today}`
+    const totalKey = `ai-literacy-today-total-${today}`
+    localStorage.setItem(correctKey, String(parseInt(localStorage.getItem(correctKey) || '0') + 1))
+    localStorage.setItem(totalKey, String(parseInt(localStorage.getItem(totalKey) || '0') + 1))
+
+    // 复习阶段同步复习计数
+    if (isReview) {
+      const todayReviewKey = `ai-literacy-today-review-count-${today}`
+      const todayReviewCnt = parseInt(localStorage.getItem(todayReviewKey) || '0') + 1
+      localStorage.setItem(todayReviewKey, String(todayReviewCnt))
+      const reviewTotal = parseInt(localStorage.getItem('ai-literacy-review-count') || '0') + 1
+      localStorage.setItem('ai-literacy-review-count', String(reviewTotal))
+    }
+
     fetch(`${API}/api/progress`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId, characterId: charId, status: newCount >= 5 ? 'mastered' : 'learning', practiceCount: 1, correctCount: 1, isCorrect: true }) }).catch(() => {})
   }, [userId])
 
   const nextChar = () => {
     const chars = phase === 'review' ? reviewChars : newChars
     if (!chars[currentIndex]) return
-    markLearned(chars[currentIndex].id)
+    const charId = chars[currentIndex].id
+    // 防止前进-后退-前进导致重复提交
+    if (!markedChars.has(charId)) {
+      markLearned(charId, phase === 'review')
+      setMarkedChars(prev => new Set(prev).add(charId))
+    }
     if (currentIndex < chars.length - 1) {
       setIsAnimating(true)
       setTimeout(() => { setCurrentIndex(i => i + 1); setShowStory(false); setIsAnimating(false) }, 300)
@@ -288,7 +336,7 @@ export default function Learn() {
                 <p className="text-sm text-gray-700 leading-relaxed">{currentChar.story || `${currentChar.character}的故事正在生成中...`}</p>
               </div>
             )}
-            <button onClick={() => markLearned(currentChar.id)}
+            <button onClick={() => markViewed(currentChar.id)}
               className={`w-full mt-3 py-3.5 rounded-2xl font-semibold text-base flex items-center justify-center gap-2 ${
                 learned.has(currentChar.id)
                   ? 'bg-green-50 text-green-600 border-2 border-green-200'

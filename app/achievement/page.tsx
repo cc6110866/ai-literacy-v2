@@ -34,24 +34,14 @@ export default function AchievementPage() {
   const [unlocked, setUnlocked] = useState<Set<string>>(new Set())
   const [stats, setStats] = useState({ totalLearned: 0, streak: 0, perfectCount: 0, reviewCount: 0 })
   const [loading, setLoading] = useState(true)
-  const [userId, setUserId] = useState('anonymous')
-
-  const API = ''
-
-  useEffect(() => { setUserId(localStorage.getItem('ai-literacy-uid') || 'anonymous') }, [])
 
   useEffect(() => {
-    async function loadAchievements() {
+    function loadAchievements() {
       try {
-        const res = await fetch(`${API}/api/progress?userId=${userId}`)
-        const data: any = await res.json()
-        let totalLearned = 0, streak = 0
-        if (data.success) { totalLearned = data.data.totalLearned; streak = data.data.streak }
-        else {
-          const learnedStr = localStorage.getItem('ai-literacy-learned') || '[]'
-          totalLearned = JSON.parse(learnedStr).length
-          streak = parseInt(localStorage.getItem('ai-literacy-streak') || '0')
-        }
+        // 统一从 localStorage 读取（与首页、识字页一致）
+        const learnedStr = localStorage.getItem('ai-literacy-learned') || '[]'
+        const totalLearned = JSON.parse(learnedStr).length
+        const streak = parseInt(localStorage.getItem('ai-literacy-streak') || '0')
         const perfectCount = parseInt(localStorage.getItem('ai-literacy-perfect') || '0')
         const reviewCount = parseInt(localStorage.getItem('ai-literacy-review-count') || '0')
         setStats({ totalLearned, streak, perfectCount, reviewCount })
@@ -63,12 +53,11 @@ export default function AchievementPage() {
         }
         setUnlocked(unlockedSet)
       } catch {
-        const learnedStr = localStorage.getItem('ai-literacy-learned') || '[]'
-        setStats(prev => ({ ...prev, totalLearned: JSON.parse(learnedStr).length }))
+        setStats(prev => ({ ...prev, totalLearned: 0 }))
       } finally { setLoading(false) }
     }
     loadAchievements()
-  }, [userId])
+  }, [])
 
   if (loading) {
     return (
@@ -82,7 +71,7 @@ export default function AchievementPage() {
           <Image src="/images/icon-achievement.webp" alt="" width={80} height={80} className="mb-4 opacity-60" />
           <p className="text-gray-400">加载成就中...</p>
         </div>
-        <BottomNav active="achievement" />
+        <BottomNav active="parent" />
       </div>
     )
   }
@@ -181,7 +170,7 @@ export default function AchievementPage() {
         </div>
       </div>
 
-      <BottomNav active="achievement" />
+      <BottomNav active="parent" />
     </div>
   )
 }

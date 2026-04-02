@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
-import { Users, ChevronLeft, BarChart3, Settings, Target, Flame, Lightbulb, Info } from 'lucide-react'
+import { Users, ChevronLeft, BarChart3, Settings, Target, Flame, Lightbulb, Info, Trophy } from 'lucide-react'
 import BottomNav from '../../components/BottomNav'
 
 interface WeekDay { date: string; newCount: number; reviewCount: number; total: number; correctRate: number }
@@ -41,42 +41,61 @@ export default function Parent() {
   }, [])
 
   useEffect(() => {
-    async function loadParentData() {
+    function loadParentData() {
       try {
-        const res = await fetch(`${API}/api/progress?userId=${userId}`)
-        const data: any = await res.json()
-        if (data.success) {
-          const p = data.data
-          const totalLearned = p.totalLearned
-          const mastered = p.mastered
-          const streak = p.streak
-          let currentLevel = 1, levelStart = 0, levelSize = 182
-          if (totalLearned >= 1709) { currentLevel = 4; levelStart = 1709; levelSize = 153 }
-          else if (totalLearned >= 947) { currentLevel = 3; levelStart = 947; levelSize = 762 }
-          else if (totalLearned >= 182) { currentLevel = 2; levelStart = 182; levelSize = 765 }
-          const levelProgress = Math.min(100, Math.round(((totalLearned - levelStart) / levelSize) * 100))
-          const weekData: WeekDay[] = (p.weekHistory || []).map((d: any) => ({ date: d.date, newCount: d.newCount, reviewCount: d.reviewCount, total: d.newCount + d.reviewCount, correctRate: d.correctRate }))
-          const today = new Date()
-          const fullWeek: WeekDay[] = []
-          for (let i = 6; i >= 0; i--) {
-            const d = new Date(today); d.setDate(d.getDate() - i)
-            const dateStr = d.toISOString().slice(0, 10)
-            const existing = weekData.find(w => w.date === dateStr)
-            fullWeek.push(existing || { date: dateStr, newCount: 0, reviewCount: 0, total: 0, correctRate: 0 })
-          }
-          const avgDaily = fullWeek.reduce((s, d) => s + d.total, 0) / 7
-          const remaining = 1862 - totalLearned
-          const estimatedDays = avgDaily > 0 ? Math.ceil(remaining / avgDaily) : 0
-          setStats({ totalLearned, totalChars: 1862, mastered, streak, todayNew: p.today.newCount, todayReview: p.today.reviewCount, todayRate: p.today.correctRate, weekData: fullWeek, avgDaily: Math.round(avgDaily * 10) / 10, estimatedDays, currentLevel, levelProgress })
-        }
-      } catch {
+        // 统一从 localStorage 读取（与首页、识字页一致）
         const learnedStr = localStorage.getItem('ai-literacy-learned') || '[]'
         const learnedIds: number[] = JSON.parse(learnedStr)
-        setStats(prev => ({ ...prev, totalLearned: learnedIds.length }))
+        const progressStr = localStorage.getItem('ai-literacy-progress') || '{}'
+        const progress: Record<string, { status: string; count: number }> = JSON.parse(progressStr)
+
+        const totalLearned = learnedIds.length
+        const mastered = learnedIds.filter(id => progress[id]?.status === 'mastered' || (progress[id]?.count || 0) >= 5).length
+        const streak = parseInt(localStorage.getItem('ai-literacy-streak') || '0')
+
+        // 今日数据
+        const today = new Date().toISOString().slice(0, 10)
+        const todayKey = `ai-literacy-today-learned-${today}`
+        const todayIds: number[] = JSON.parse(localStorage.getItem(todayKey) || '[]')
+        const todayNew = todayIds.length
+        const todayReview = parseInt(localStorage.getItem(`ai-literacy-today-review-count-${today}`) || '0')
+        const todayCorrect = parseInt(localStorage.getItem(`ai-literacy-today-correct-${today}`) || '0')
+        const todayTotal = parseInt(localStorage.getItem(`ai-literacy-today-total-${today}`) || '0')
+        const todayRate = todayTotal > 0 ? todayCorrect / todayTotal : 0
+
+        // 级别进度
+        let currentLevel = 1, levelStart = 0, levelSize = 169
+        if (totalLearned >= 1738) { currentLevel = 4; levelStart = 1738; levelSize = 124 }
+        else if (totalLearned >= 960) { currentLevel = 3; levelStart = 960; levelSize = 778 }
+        else if (totalLearned >= 169) { currentLevel = 2; levelStart = 169; levelSize = 791 }
+        const levelProgress = Math.min(100, Math.round(((totalLearned - levelStart) / levelSize) * 100))
+
+        // 本周数据（从 localStorage 读取每日记录）
+        const weekData: WeekDay[] = []
+        const todayDate = new Date()
+        for (let i = 6; i >= 0; i--) {
+          const d = new Date(todayDate); d.setDate(d.getDate() - i)
+          const dateStr = d.toISOString().slice(0, 10)
+          const dayKey = `ai-literacy-today-learned-${dateStr}`
+          const dayIds: number[] = JSON.parse(localStorage.getItem(dayKey) || '[]')
+          const dayReview = parseInt(localStorage.getItem(`ai-literacy-today-review-count-${dateStr}`) || '0')
+          const dayCorrect = parseInt(localStorage.getItem(`ai-literacy-today-correct-${dateStr}`) || '0')
+          const dayTotal = parseInt(localStorage.getItem(`ai-literacy-today-total-${dateStr}`) || '0')
+          const dayRate = dayTotal > 0 ? dayCorrect / dayTotal : 0
+          weekData.push({ date: dateStr, newCount: dayIds.length, reviewCount: dayReview, total: dayIds.length + dayReview, correctRate: dayRate })
+        }
+        const avgDaily = weekData.reduce((s, d) => s + d.total, 0) / 7
+        const remaining = 1862 - totalLearned
+        const estimatedDays = avgDaily > 0 ? Math.ceil(remaining / avgDaily) : 0
+
+        setStats({ totalLearned, totalChars: 1862, mastered, streak, todayNew, todayReview, todayRate, weekData, avgDaily: Math.round(avgDaily * 10) / 10, estimatedDays, currentLevel, levelProgress })
+      } catch {
+        const learnedStr = localStorage.getItem('ai-literacy-learned') || '[]'
+        setStats(prev => ({ ...prev, totalLearned: JSON.parse(learnedStr).length }))
       } finally { setLoading(false) }
     }
     loadParentData()
-  }, [userId])
+  }, [])
 
   const progressPct = Math.round((stats.totalLearned / stats.totalChars) * 100)
   const levelName: Record<number, string> = { 1: '启蒙', 2: '基础', 3: '进阶', 4: '衔接' }
@@ -302,6 +321,17 @@ export default function Parent() {
               <div className="flex justify-between"><span className="text-gray-400">已掌握</span><span className="font-bold text-green-500">{stats.mastered} 字</span></div>
               <div className="flex justify-between"><span className="text-gray-400">完成进度</span><span className="font-bold text-orange-500">{progressPct}%</span></div>
             </div>
+          </div>
+
+          {/* 关于 */}
+          <div className="bg-white rounded-2xl p-5 shadow-sm mb-4">
+            <h3 className="text-sm font-bold text-gray-800 mb-3 flex items-center gap-1.5">
+              <Trophy size={15} /> 成就徽章
+            </h3>
+            <p className="text-sm text-gray-400 mb-3">查看孩子的学习成就和解锁进度</p>
+            <Link href="/achievement" className="block w-full py-3 rounded-2xl bg-gradient-to-r from-amber-400 to-orange-400 text-white font-bold text-center">
+              查看成就
+            </Link>
           </div>
 
           {/* 关于 */}

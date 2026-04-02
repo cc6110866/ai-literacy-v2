@@ -31,11 +31,14 @@ export default function Practice() {
   const [loading, setLoading] = useState(true)
   const [finished, setFinished] = useState(false)
   const [answered, setAnswered] = useState<boolean[]>([])
-  const [userId, setUserId] = useState('anonymous')
+  const [userId] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('ai-literacy-uid') || 'anonymous'
+    }
+    return 'anonymous'
+  })
 
   const API = ''
-
-  useEffect(() => { setUserId(localStorage.getItem('ai-literacy-uid') || 'anonymous') }, [])
 
   useEffect(() => {
     async function loadQuestions() {
@@ -46,7 +49,7 @@ export default function Practice() {
         const charIdsParam = urlParams.get('charIds')
         if (charIdsParam) {
           const targetIds = charIdsParam.split(',').map(Number).filter(Boolean)
-          const res = await fetch(`${API}/api/characters?mode=all&limit=100`)
+          const res = await fetch(`${API}/api/characters?mode=all&limit=200`)
           const data: any = await res.json()
           if (data.success) {
             const targetChars = data.data.filter((c: CharData) => targetIds.includes(c.id))
@@ -61,7 +64,7 @@ export default function Practice() {
           if (data.success && data.data.length >= 4) buildQuestions(data.data)
           return
         }
-        const res = await fetch(`${API}/api/characters?mode=all&limit=50`)
+        const res = await fetch(`${API}/api/characters?mode=all&limit=200`)
         const data: any = await res.json()
         if (data.success) {
           const learned: CharData[] = data.data.filter((c: CharData) => learnedIds.includes(c.id))
@@ -97,6 +100,12 @@ export default function Practice() {
     const isCorrect = index === questions[currentIndex].correctIndex
     if (isCorrect) setScore(s => s + 1)
     setAnswered(prev => [...prev, isCorrect])
+    // 同步今日正确率
+    const today = new Date().toISOString().slice(0, 10)
+    const correctKey = `ai-literacy-today-correct-${today}`
+    const totalKey = `ai-literacy-today-total-${today}`
+    localStorage.setItem(correctKey, String(parseInt(localStorage.getItem(correctKey) || '0') + (isCorrect ? 1 : 0)))
+    localStorage.setItem(totalKey, String(parseInt(localStorage.getItem(totalKey) || '0') + 1))
     fetch(`${API}/api/progress`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId, characterId: questions[currentIndex].charId, status: 'learning', practiceCount: 1, correctCount: isCorrect ? 1 : 0, isCorrect }) }).catch(() => {})
   }, [selected, questions, currentIndex, userId])
 
@@ -111,7 +120,7 @@ export default function Practice() {
     }
   }
 
-  const restart = () => { setCurrentIndex(0); setSelected(null); setScore(0); setFinished(false); setAnswered([]) }
+  const restart = () => { window.location.reload() }
 
   if (loading) {
     return (
@@ -130,7 +139,7 @@ export default function Practice() {
   }
 
   if (finished) {
-    const correctRate = Math.round((score / questions.length) * 100)
+    const correctRate = questions.length > 0 ? Math.round((score / questions.length) * 100) : 0
     return (
       <div className="pb-24">
         <div className="flex items-center justify-center px-5" style={{ minHeight: '80vh' }}>

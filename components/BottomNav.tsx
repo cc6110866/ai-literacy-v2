@@ -1,12 +1,12 @@
 import Link from 'next/link'
-import { Home, BookOpen, PencilLine, Trophy, Users } from 'lucide-react'
+import { Home, BookOpen, PencilLine, Trophy, Users, RotateCcw } from 'lucide-react'
 
 export default function BottomNav({ active }: { active: string }) {
   const items = [
     { href: '/', label: '首页', id: 'home', icon: Home },
     { href: '/learn', label: '识字', id: 'learn', icon: BookOpen },
     { href: '/practice', label: '练习', id: 'practice', icon: PencilLine },
-    { href: '/achievement', label: '成就', id: 'achievement', icon: Trophy },
+    { href: '/review', label: '复习', id: 'review', icon: RotateCcw },
     { href: '/parent', label: '家长', id: 'parent', icon: Users },
   ]
 
