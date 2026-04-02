@@ -1,0 +1,7 @@
+name = "ai-literacy-v2"
+compatibility_date = "2024-01-01"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "ai-literacy-db"
+database_id = "59129a24-c6b2-4065-b9f8-9b424964fbf4"

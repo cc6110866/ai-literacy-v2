@@ -33,7 +33,7 @@ export default function Practice() {
   const [answered, setAnswered] = useState<boolean[]>([])
   const [userId, setUserId] = useState('anonymous')
 
-  const API = 'https://ai-literacy-companion.pages.dev'
+  const API = ''
 
   useEffect(() => { setUserId(localStorage.getItem('ai-literacy-uid') || 'anonymous') }, [])
 
@@ -47,7 +47,7 @@ export default function Practice() {
         if (charIdsParam) {
           const targetIds = charIdsParam.split(',').map(Number).filter(Boolean)
           const res = await fetch(`${API}/api/characters?mode=all&limit=100`)
-          const data = await res.json()
+          const data: any = await res.json()
           if (data.success) {
             const targetChars = data.data.filter((c: CharData) => targetIds.includes(c.id))
             const extraChars = data.data.filter((c: CharData) => !targetIds.includes(c.id) && learnedIds.includes(c.id))
@@ -57,12 +57,12 @@ export default function Practice() {
         }
         if (learnedIds.length < 4) {
           const res = await fetch(`${API}/api/characters?mode=level&level=1&limit=10`)
-          const data = await res.json()
+          const data: any = await res.json()
           if (data.success && data.data.length >= 4) buildQuestions(data.data)
           return
         }
         const res = await fetch(`${API}/api/characters?mode=all&limit=50`)
-        const data = await res.json()
+        const data: any = await res.json()
         if (data.success) {
           const learned: CharData[] = data.data.filter((c: CharData) => learnedIds.includes(c.id))
           if (learned.length >= 4) buildQuestions(shuffle<CharData>(learned).slice(0, 20))

@@ -19,8 +19,8 @@ export default function Home() {
       try {
         const uid = localStorage.getItem('ai-literacy-uid') || ''
         if (!uid) return
-        const res = await fetch(`https://ai-literacy-companion.pages.dev/api/progress?userId=${uid}`)
-        const data = await res.json()
+        const res = await fetch(`/api/progress?userId=${uid}`)
+        const data: any = await res.json()
         if (data.success) {
           const p = data.data
           let lv = 1

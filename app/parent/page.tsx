@@ -30,7 +30,7 @@ export default function Parent() {
     return 'anonymous'
   })
 
-  const API = 'https://ai-literacy-companion.pages.dev'
+  const API = ''
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -44,7 +44,7 @@ export default function Parent() {
     async function loadParentData() {
       try {
         const res = await fetch(`${API}/api/progress?userId=${userId}`)
-        const data = await res.json()
+        const data: any = await res.json()
         if (data.success) {
           const p = data.data
           const totalLearned = p.totalLearned

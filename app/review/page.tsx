@@ -17,7 +17,7 @@ export default function Review() {
   const [finished, setFinished] = useState(false)
   const [userId, setUserId] = useState('anonymous')
 
-  const API = 'https://ai-literacy-companion.pages.dev'
+  const API = ''
 
   useEffect(() => { setUserId(localStorage.getItem('ai-literacy-uid') || 'anonymous') }, [])
 
@@ -33,7 +33,7 @@ export default function Review() {
         }
         if (dueIds.length > 0) {
           const res = await fetch(`${API}/api/characters?mode=all&limit=50`)
-          const data = await res.json()
+          const data: any = await res.json()
           if (data.success) {
             const due = data.data.filter((c: CharData) => dueIds.includes(c.id))
             setReviewChars(due.slice(0, 15))

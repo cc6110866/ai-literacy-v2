@@ -36,7 +36,7 @@ export default function AchievementPage() {
   const [loading, setLoading] = useState(true)
   const [userId, setUserId] = useState('anonymous')
 
-  const API = 'https://ai-literacy-companion.pages.dev'
+  const API = ''
 
   useEffect(() => { setUserId(localStorage.getItem('ai-literacy-uid') || 'anonymous') }, [])
 
@@ -44,7 +44,7 @@ export default function AchievementPage() {
     async function loadAchievements() {
       try {
         const res = await fetch(`${API}/api/progress?userId=${userId}`)
-        const data = await res.json()
+        const data: any = await res.json()
         let totalLearned = 0, streak = 0
         if (data.success) { totalLearned = data.data.totalLearned; streak = data.data.streak }
         else {

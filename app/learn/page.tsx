@@ -35,7 +35,7 @@ export default function Learn() {
     return 'anonymous'
   })
 
-  const API = 'https://ai-literacy-companion.pages.dev'
+  const API = ''
 
   useEffect(() => {
     async function loadData() {
@@ -52,7 +52,7 @@ export default function Learn() {
         }
         if (dueIds.length > 0) {
           const allRes = await fetch(`${API}/api/characters?mode=all&limit=100`)
-          const allData = await allRes.json()
+          const allData: any = await allRes.json()
           if (allData.success) {
             const reviewSet = allData.data.filter((c: CharData) => dueIds.includes(c.id))
             if (reviewSet.length > 0) { setReviewChars(reviewSet.slice(0, 10)); setPhase('review'); setLoading(false); return }
@@ -76,7 +76,7 @@ export default function Learn() {
         if (total >= 960) targetLevel = 4; else if (total >= 195) targetLevel = 3; else if (total >= 30) targetLevel = 2; else targetLevel = 1
       }
       const res = await fetch(`${API}/api/characters?mode=level&level=${targetLevel}&limit=50`)
-      const data = await res.json()
+      const data: any = await res.json()
       if (data.success && data.data) {
         const unlearned = data.data.filter((c: CharData) => !learnedIds.includes(c.id))
         if (unlearned.length > 0) {
@@ -85,7 +85,7 @@ export default function Learn() {
           localStorage.setItem(`ai-literacy-today-${today}`, JSON.stringify({ chars: todayChars, topic: todayChars[0]?.topic_group || '', level: todayChars[0]?.level || targetLevel }))
         } else if (targetLevel < 4) {
           const nextRes = await fetch(`${API}/api/characters?mode=level&level=${targetLevel + 1}&limit=50`)
-          const nextData = await nextRes.json()
+          const nextData: any = await nextRes.json()
           if (nextData.success && nextData.data) {
             const nextUnlearned = nextData.data.filter((c: CharData) => !learnedIds.includes(c.id))
             if (nextUnlearned.length > 0) {
