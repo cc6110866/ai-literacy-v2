@@ -14,7 +14,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
   try {
     // 获取用户总览
     const userResult: any = await env.DB.prepare(
-      'SELECT totalLearned, mastered, streak, dueReview FROM user_progress WHERE userId = ?'
+      'SELECT totalLearned, mastered, streak, dueReview FROM Progress WHERE userId = ?'
     ).bind(userId).first()
 
     const totalLearned = userResult?.totalLearned || 0
@@ -24,7 +24,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     // 获取今日统计
     const today = new Date().toISOString().slice(0, 10)
     const todayResult: any = await env.DB.prepare(
-      'SELECT newCount, reviewCount, correctCount, totalAttempts FROM daily_stats WHERE userId = ? AND date = ?'
+      'SELECT newCount, reviewCount, correctCount, totalAttempts FROM DailyRecord WHERE userId = ? AND date = ?'
     ).bind(userId, today).first()
 
     const todayData = todayResult ? {
@@ -40,7 +40,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     weekAgo.setDate(weekAgo.getDate() - 6)
     const weekStr = weekAgo.toISOString().slice(0, 10)
     const weekResult: any = await env.DB.prepare(
-      'SELECT date, newCount, reviewCount, correctCount, totalAttempts FROM daily_stats WHERE userId = ? AND date >= ? ORDER BY date'
+      'SELECT date, newCount, reviewCount, correctCount, totalAttempts FROM DailyRecord WHERE userId = ? AND date >= ? ORDER BY date'
     ).bind(userId, weekStr).all()
 
     const weekHistory = weekResult.results.map((row: any) => ({
@@ -98,7 +98,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
 
     // 更新用户总进度
     await env.DB.prepare(`
-      INSERT INTO user_progress (userId, totalLearned, mastered, streak, lastStudyDate, dueReview)
+      INSERT INTO Progress (userId, totalLearned, mastered, streak, lastStudyDate, dueReview)
       VALUES (?, 1, 0, 1, ?, 0)
       ON CONFLICT(userId) DO UPDATE SET
         totalLearned = totalLearned + CASE WHEN status = 'learning' THEN 1 ELSE 0 END,
@@ -109,7 +109,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
 
     // 更新每日统计
     await env.DB.prepare(`
-      INSERT INTO daily_stats (userId, date, newCount, reviewCount, correctCount, totalAttempts)
+      INSERT INTO DailyRecord (userId, date, newCount, reviewCount, correctCount, totalAttempts)
       VALUES (?, ?, ?, ?, ?, ?)
       ON CONFLICT(userId, date) DO UPDATE SET
         newCount = newCount + ?,
