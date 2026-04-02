@@ -81,7 +81,7 @@ export default function Home() {
         </div>
       </div>
 
-      <div className="px-5 -mt-4">
+      <div className="px-5 -mt-4 relative z-10">
         {/* CTA 按钮 */}
         <Link
           href={stats.dueReview > 0 ? '/review' : '/learn'}
