@@ -1,6 +1,6 @@
 // API: 获取/更新学习进度
 // 表结构（v1 实际）:
-// Progress: id, userId, characterId, status, practiceCount, correctCount, lastPractice, nextReview, reviewCount, createdAt, updatedAt
+// Progress: id, userId, characterId, status, practiceCount, correctCount, lastPractice, nextReview, reviewCount, createdAt
 // DailyRecord: id, userId, date, charactersLearned, charactersReviewed, newCount, reviewCount, correctRate, createdAt
 
 export const onRequestGet: PagesFunction<Env> = async (context) => {
@@ -232,8 +232,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       await env.DB.prepare(`
         UPDATE Progress SET
           status = ?, practiceCount = ?, correctCount = ?,
-          lastPractice = datetime('now'), nextReview = ?, reviewCount = ?,
-          updatedAt = datetime('now')
+          lastPractice = datetime('now'), nextReview = ?, reviewCount = ?
         WHERE userId = ? AND characterId = ?
       `).bind(newStatus, newPracticeCount, newCorrectCount, nextReview, newReviewCount, userId, characterId).run()
     } else {
@@ -258,8 +257,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       await env.DB.prepare(`
         UPDATE DailyRecord SET
           newCount = ?, reviewCount = ?,
-          charactersLearned = ?, charactersReviewed = ?,
-          updatedAt = datetime('now')
+          charactersLearned = ?, charactersReviewed = ?
         WHERE userId = ? AND date = ?
       `).bind(newCount, reviewCount, learned, reviewed, userId, today).run()
     } else {
