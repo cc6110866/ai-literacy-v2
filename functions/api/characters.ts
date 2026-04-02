@@ -13,29 +13,29 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     let params: any[] = []
 
     if (mode === 'all') {
-      query = 'SELECT id, character, pinyin, meaning, story, category, strokes, level, topic_group, origin FROM characters ORDER BY level, id LIMIT ? OFFSET ?'
+      query = 'SELECT id, character, pinyin, meaning, story, category, strokes, level, topic_group, origin FROM Character ORDER BY level, id LIMIT ? OFFSET ?'
       params = [limit, offset]
     } else if (mode === 'level') {
       if (topicGroup) {
-        query = 'SELECT id, character, pinyin, meaning, story, category, strokes, level, topic_group, origin FROM characters WHERE level = ? AND topic_group = ? ORDER BY id LIMIT ? OFFSET ?'
+        query = 'SELECT id, character, pinyin, meaning, story, category, strokes, level, topic_group, origin FROM Character WHERE level = ? AND topic_group = ? ORDER BY id LIMIT ? OFFSET ?'
         params = [level, topicGroup, limit, offset]
       } else {
-        query = 'SELECT id, character, pinyin, meaning, story, category, strokes, level, topic_group, origin FROM characters WHERE level = ? ORDER BY id LIMIT ? OFFSET ?'
+        query = 'SELECT id, character, pinyin, meaning, story, category, strokes, level, topic_group, origin FROM Character WHERE level = ? ORDER BY id LIMIT ? OFFSET ?'
         params = [level, limit, offset]
       }
     } else if (mode === 'topic_group') {
-      query = 'SELECT DISTINCT topic_group, COUNT(*) as count FROM characters GROUP BY topic_group ORDER BY MIN(id)'
+      query = 'SELECT DISTINCT topic_group, COUNT(*) as count FROM Character GROUP BY topic_group ORDER BY MIN(id)'
     } else if (mode === 'groups') {
-      query = 'SELECT topic_group, level, COUNT(*) as count FROM characters GROUP BY topic_group, level ORDER BY level, topic_group'
+      query = 'SELECT topic_group, level, COUNT(*) as count FROM Character GROUP BY topic_group, level ORDER BY level, topic_group'
     } else if (mode === 'today') {
       // 随机取指定级别和数量的字
-      query = 'SELECT id, character, pinyin, meaning, story, category, strokes, level, topic_group, origin FROM characters WHERE level = ? ORDER BY RANDOM() LIMIT ?'
+      query = 'SELECT id, character, pinyin, meaning, story, category, strokes, level, topic_group, origin FROM Character WHERE level = ? ORDER BY RANDOM() LIMIT ?'
       params = [level, limit]
     } else if (mode === 'review') {
-      query = 'SELECT id, character, pinyin, meaning, story, category, strokes, level, topic_group, origin FROM characters WHERE level <= ? ORDER BY RANDOM() LIMIT ?'
+      query = 'SELECT id, character, pinyin, meaning, story, category, strokes, level, topic_group, origin FROM Character WHERE level <= ? ORDER BY RANDOM() LIMIT ?'
       params = [level, limit]
     } else {
-      query = 'SELECT id, character, pinyin, meaning, story, category, strokes, level, topic_group, origin FROM characters WHERE level = ? ORDER BY id LIMIT ? OFFSET ?'
+      query = 'SELECT id, character, pinyin, meaning, story, category, strokes, level, topic_group, origin FROM Character WHERE level = ? ORDER BY id LIMIT ? OFFSET ?'
       params = [level, limit, offset]
     }
 
