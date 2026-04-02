@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 import { BookOpen, PencilLine, Trophy, Settings, Flame, Target, Sparkles, RotateCcw } from 'lucide-react'
+import { getLocalDate, getDateDaysAgo } from '../lib/utils'
 import BottomNav from '../components/BottomNav'
 
 export default function Home() {
@@ -17,8 +18,11 @@ export default function Home() {
   useEffect(() => {
     async function load() {
       try {
-        const uid = localStorage.getItem('ai-literacy-uid') || ''
-        if (!uid) return
+        let uid = localStorage.getItem('ai-literacy-uid')
+        if (!uid) {
+          uid = 'user_' + Math.random().toString(36).slice(2, 10)
+          localStorage.setItem('ai-literacy-uid', uid)
+        }
 
         // 主数据源：localStorage（与识字页一致）
         const learnedStr = localStorage.getItem('ai-literacy-learned') || '[]'
@@ -39,7 +43,7 @@ export default function Home() {
         const streak = parseInt(streakStr) || 0
 
         // 今日已学
-        const today = new Date().toISOString().slice(0, 10)
+        const today = getLocalDate()
         const todayKey = `ai-literacy-today-learned-${today}`
         const todayLearnedStr = localStorage.getItem(todayKey) || '[]'
         const todayLearnedIds: number[] = JSON.parse(todayLearnedStr)
@@ -47,10 +51,8 @@ export default function Home() {
 
         // 本周历史（从 localStorage 每日记录计算）
         const weekHistory: { date: string; count: number }[] = []
-        const todayDate = new Date()
         for (let i = 6; i >= 0; i--) {
-          const d = new Date(todayDate); d.setDate(d.getDate() - i)
-          const dateStr = d.toISOString().slice(0, 10)
+          const dateStr = getDateDaysAgo(6 - i)
           const dayKey = `ai-literacy-today-learned-${dateStr}`
           const dayIds: number[] = JSON.parse(localStorage.getItem(dayKey) || '[]')
           const dayReview = parseInt(localStorage.getItem(`ai-literacy-today-review-count-${dateStr}`) || '0')

@@ -195,7 +195,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
 
   try {
     const body: any = await request.json()
-    const { userId, characterId, status, practiceCount, correctCount, isCorrect } = body
+    const { userId, characterId, status, practiceCount, correctCount, isCorrect, isReview } = body
 
     if (!userId || !characterId) {
       return new Response(JSON.stringify({ success: false, error: 'Missing userId or characterId' }), {
@@ -249,9 +249,9 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     ).bind(userId, today).first()
 
     if (existingDaily) {
-      const isNew = inputStatus === 'learning'
-      const newCount = (existingDaily.newCount || 0) + (isNew ? 1 : 0)
-      const reviewCount = (existingDaily.reviewCount || 0) + (isNew ? 0 : 1)
+      const isReviewOp = isReview === true
+      const newCount = (existingDaily.newCount || 0) + (isReviewOp ? 0 : 1)
+      const reviewCount = (existingDaily.reviewCount || 0) + (isReviewOp ? 1 : 0)
       const learned = existingDaily.charactersLearned || ''
       const reviewed = existingDaily.charactersReviewed || ''
 
@@ -266,7 +266,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       await env.DB.prepare(`
         INSERT INTO DailyRecord (userId, date, newCount, reviewCount, charactersLearned, charactersReviewed)
         VALUES (?, ?, ?, ?, ?, '')
-      `).bind(userId, today, inputStatus === 'learning' ? 1 : 0, inputStatus === 'learning' ? 0 : 1, '').run()
+      `).bind(userId, today, isReview === true ? 0 : 1, isReview === true ? 1 : 0, '').run()
     }
 
     return new Response(JSON.stringify({ success: true }), {

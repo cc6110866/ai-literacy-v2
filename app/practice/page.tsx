@@ -5,6 +5,7 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { PencilLine, ChevronLeft, Star, RotateCcw, ArrowRight } from 'lucide-react'
 import BottomNav from '../../components/BottomNav'
+import { getLocalDate } from '../../lib/utils'
 
 interface CharData { id: number; character: string; pinyin: string; meaning: string; category: string; level: number; topic_group: string }
 
@@ -59,9 +60,8 @@ export default function Practice() {
           }
         }
         if (learnedIds.length < 4) {
-          const res = await fetch(`${API}/api/characters?mode=level&level=1&limit=10`)
-          const data: any = await res.json()
-          if (data.success && data.data.length >= 4) buildQuestions(data.data)
+          // 不够 4 个字无法生成有效题目，显示提示
+          setQuestions([])
           return
         }
         const res = await fetch(`${API}/api/characters?mode=all&limit=200`)
@@ -101,12 +101,12 @@ export default function Practice() {
     if (isCorrect) setScore(s => s + 1)
     setAnswered(prev => [...prev, isCorrect])
     // 同步今日正确率
-    const today = new Date().toISOString().slice(0, 10)
+    const today = getLocalDate()
     const correctKey = `ai-literacy-today-correct-${today}`
     const totalKey = `ai-literacy-today-total-${today}`
     localStorage.setItem(correctKey, String(parseInt(localStorage.getItem(correctKey) || '0') + (isCorrect ? 1 : 0)))
     localStorage.setItem(totalKey, String(parseInt(localStorage.getItem(totalKey) || '0') + 1))
-    fetch(`${API}/api/progress`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId, characterId: questions[currentIndex].charId, status: 'learning', practiceCount: 1, correctCount: isCorrect ? 1 : 0, isCorrect }) }).catch(() => {})
+    fetch(`${API}/api/progress`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId, characterId: questions[currentIndex].charId, status: 'learning', practiceCount: 1, correctCount: isCorrect ? 1 : 0, isCorrect, isReview: false }) }).catch(() => {})
   }, [selected, questions, currentIndex, userId])
 
   const nextQuestion = () => {

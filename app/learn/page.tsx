@@ -5,6 +5,7 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { BookOpen, PencilLine, ChevronLeft, ChevronRight, Eye, CheckCircle2, Lightbulb, PenTool, Tag, Layers, RotateCcw, Home, Sparkles } from 'lucide-react'
 import BottomNav from '../../components/BottomNav'
+import { getLocalDate, getYesterdayDate } from '../../lib/utils'
 
 interface CharData {
   id: number; character: string; pinyin: string; meaning: string
@@ -63,52 +64,55 @@ export default function Learn() {
       } catch { await loadNewChars([]) } finally { setLoading(false) }
     }
     async function loadNewChars(learnedIds: number[]) {
-      const today = new Date().toISOString().slice(0, 10)
+      const today = getLocalDate()
       const dailyTarget = parseInt(localStorage.getItem('ai-literacy-daily-target') || '5')
       const cached = localStorage.getItem(`ai-literacy-today-${today}`)
       const forceLevel = parseInt(localStorage.getItem('ai-literacy-force-level') || '0')
       if (cached) {
-        const data = JSON.parse(cached)
-        if (data.chars && data.chars.length > 0) {
-          // 检查缓存级别是否与当前设置一致，或每日目标是否变化
-          const levelMismatch = forceLevel !== 0 && data.level !== forceLevel
-          const targetMismatch = data.dailyTarget && data.dailyTarget !== dailyTarget
-          if (levelMismatch || targetMismatch) {
-            localStorage.removeItem(`ai-literacy-today-${today}`) // 设置变了，清缓存
-          } else {
-            const allLearned = data.chars.every((c: any) => learnedIds.includes(c.id))
-            if (!allLearned) {
-              setNewChars(data.chars); setCurrentTopic(data.topic); setCurrentLevel(data.level); setPhase('learn'); return
+        try {
+          const data = JSON.parse(cached)
+          if (data.chars && data.chars.length > 0) {
+            const levelMismatch = forceLevel !== 0 && data.level !== forceLevel
+            const targetMismatch = data.dailyTarget && data.dailyTarget !== dailyTarget
+            if (levelMismatch || targetMismatch) {
+              localStorage.removeItem(`ai-literacy-today-${today}`)
+            } else {
+              const allLearned = data.chars.every((c: any) => learnedIds.includes(c.id))
+              if (!allLearned) {
+                setNewChars(data.chars); setCurrentTopic(data.topic); setCurrentLevel(data.level); setPhase('learn'); return
+              }
+            }
+          }
+        } catch {}
+      }
+      try {
+        let targetLevel = forceLevel
+        if (targetLevel === 0) {
+          const total = learnedIds.length
+          if (total >= 1738) targetLevel = 4; else if (total >= 960) targetLevel = 3; else if (total >= 169) targetLevel = 2; else targetLevel = 1
+        }
+        const res = await fetch(`${API}/api/characters?mode=level&level=${targetLevel}&limit=50`)
+        const data: any = await res.json()
+        if (data.success && data.data) {
+          const unlearned = data.data.filter((c: CharData) => !learnedIds.includes(c.id))
+          if (unlearned.length > 0) {
+            const todayChars = unlearned.slice(0, dailyTarget)
+            setNewChars(todayChars); setCurrentTopic(todayChars[0]?.topic_group || ''); setCurrentLevel(todayChars[0]?.level || targetLevel)
+            localStorage.setItem(`ai-literacy-today-${today}`, JSON.stringify({ chars: todayChars, topic: todayChars[0]?.topic_group || '', level: todayChars[0]?.level || targetLevel, dailyTarget }))
+          } else if (targetLevel < 4) {
+            const nextRes = await fetch(`${API}/api/characters?mode=level&level=${targetLevel + 1}&limit=50`)
+            const nextData: any = await nextRes.json()
+            if (nextData.success && nextData.data) {
+              const nextUnlearned = nextData.data.filter((c: CharData) => !learnedIds.includes(c.id))
+              if (nextUnlearned.length > 0) {
+                const todayChars = nextUnlearned.slice(0, dailyTarget)
+                setNewChars(todayChars); setCurrentTopic(todayChars[0]?.topic_group || ''); setCurrentLevel(targetLevel + 1)
+                localStorage.setItem(`ai-literacy-today-${today}`, JSON.stringify({ chars: todayChars, topic: todayChars[0]?.topic_group || '', level: targetLevel + 1, dailyTarget }))
+              }
             }
           }
         }
-      }
-      let targetLevel = forceLevel
-      if (targetLevel === 0) {
-        const total = learnedIds.length
-        if (total >= 1738) targetLevel = 4; else if (total >= 960) targetLevel = 3; else if (total >= 169) targetLevel = 2; else targetLevel = 1
-      }
-      const res = await fetch(`${API}/api/characters?mode=level&level=${targetLevel}&limit=50`)
-      const data: any = await res.json()
-      if (data.success && data.data) {
-        const unlearned = data.data.filter((c: CharData) => !learnedIds.includes(c.id))
-        if (unlearned.length > 0) {
-          const todayChars = unlearned.slice(0, dailyTarget)
-          setNewChars(todayChars); setCurrentTopic(todayChars[0]?.topic_group || ''); setCurrentLevel(todayChars[0]?.level || targetLevel)
-          localStorage.setItem(`ai-literacy-today-${today}`, JSON.stringify({ chars: todayChars, topic: todayChars[0]?.topic_group || '', level: todayChars[0]?.level || targetLevel, dailyTarget }))
-        } else if (targetLevel < 4) {
-          const nextRes = await fetch(`${API}/api/characters?mode=level&level=${targetLevel + 1}&limit=50`)
-          const nextData: any = await nextRes.json()
-          if (nextData.success && nextData.data) {
-            const nextUnlearned = nextData.data.filter((c: CharData) => !learnedIds.includes(c.id))
-            if (nextUnlearned.length > 0) {
-              const todayChars = nextUnlearned.slice(0, dailyTarget)
-              setNewChars(todayChars); setCurrentTopic(todayChars[0]?.topic_group || ''); setCurrentLevel(targetLevel + 1)
-              localStorage.setItem(`ai-literacy-today-${today}`, JSON.stringify({ chars: todayChars, topic: todayChars[0]?.topic_group || '', level: targetLevel + 1, dailyTarget }))
-            }
-          }
-        }
-      }
+      } catch {}
       setPhase('learn')
     }
     loadData()
@@ -142,15 +146,14 @@ export default function Learn() {
     localStorage.setItem('ai-literacy-progress', JSON.stringify(progress))
 
     // 同步首页需要的今日数据
-    const today = new Date().toISOString().slice(0, 10)
+    const today = getLocalDate()
     const todayKey = `ai-literacy-today-learned-${today}`
     const todayIds: number[] = JSON.parse(localStorage.getItem(todayKey) || '[]')
     if (!todayIds.includes(charId)) { todayIds.push(charId); localStorage.setItem(todayKey, JSON.stringify(todayIds)) }
 
     // 更新连续学习天数
     const lastStudyDate = localStorage.getItem('ai-literacy-last-study-date') || ''
-    const yesterday = new Date(); yesterday.setDate(yesterday.getDate() - 1)
-    const yesterdayStr = yesterday.toISOString().slice(0, 10)
+    const yesterdayStr = getYesterdayDate()
     let streak = parseInt(localStorage.getItem('ai-literacy-streak') || '0')
     if (lastStudyDate === yesterdayStr || lastStudyDate === today) {
       if (lastStudyDate !== today) streak++
@@ -175,7 +178,7 @@ export default function Learn() {
       localStorage.setItem('ai-literacy-review-count', String(reviewTotal))
     }
 
-    fetch(`${API}/api/progress`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId, characterId: charId, status: newCount >= 5 ? 'mastered' : 'learning', practiceCount: 1, correctCount: 1, isCorrect: true }) }).catch(() => {})
+    fetch(`${API}/api/progress`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId, characterId: charId, status: newCount >= 5 ? 'mastered' : 'learning', practiceCount: 1, correctCount: 1, isCorrect: true, isReview }) }).catch(() => {})
   }, [userId])
 
   const nextChar = () => {

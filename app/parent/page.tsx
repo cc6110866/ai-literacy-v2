@@ -5,6 +5,7 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { Users, ChevronLeft, BarChart3, Settings, Target, Flame, Lightbulb, Info, Trophy } from 'lucide-react'
 import BottomNav from '../../components/BottomNav'
+import { getLocalDate, getDateDaysAgo } from '../../lib/utils'
 
 interface WeekDay { date: string; newCount: number; reviewCount: number; total: number; correctRate: number }
 
@@ -54,7 +55,7 @@ export default function Parent() {
         const streak = parseInt(localStorage.getItem('ai-literacy-streak') || '0')
 
         // 今日数据
-        const today = new Date().toISOString().slice(0, 10)
+        const today = getLocalDate()
         const todayKey = `ai-literacy-today-learned-${today}`
         const todayIds: number[] = JSON.parse(localStorage.getItem(todayKey) || '[]')
         const todayNew = todayIds.length
@@ -72,10 +73,8 @@ export default function Parent() {
 
         // 本周数据（从 localStorage 读取每日记录）
         const weekData: WeekDay[] = []
-        const todayDate = new Date()
         for (let i = 6; i >= 0; i--) {
-          const d = new Date(todayDate); d.setDate(d.getDate() - i)
-          const dateStr = d.toISOString().slice(0, 10)
+          const dateStr = getDateDaysAgo(6 - i)
           const dayKey = `ai-literacy-today-learned-${dateStr}`
           const dayIds: number[] = JSON.parse(localStorage.getItem(dayKey) || '[]')
           const dayReview = parseInt(localStorage.getItem(`ai-literacy-today-review-count-${dateStr}`) || '0')

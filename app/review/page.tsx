@@ -5,6 +5,7 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { BookOpen, ChevronLeft, Eye, XCircle, CheckCircle2, Sparkles } from 'lucide-react'
 import BottomNav from '../../components/BottomNav'
+import { getLocalDate } from '../../lib/utils'
 
 interface CharData { id: number; character: string; pinyin: string; meaning: string; category: string; level: number; topic_group: string }
 
@@ -73,11 +74,11 @@ export default function Review() {
     const reviewCnt = parseInt(localStorage.getItem('ai-literacy-review-count') || '0') + 1
     localStorage.setItem('ai-literacy-review-count', String(reviewCnt))
     // 同步今日复习计数
-    const today = new Date().toISOString().slice(0, 10)
+    const today = getLocalDate()
     const todayReviewKey = `ai-literacy-today-review-count-${today}`
     const todayReviewCnt = parseInt(localStorage.getItem(todayReviewKey) || '0') + 1
     localStorage.setItem(todayReviewKey, String(todayReviewCnt))
-    fetch(`${API}/api/progress`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId, characterId: char.id, status: 'learning', practiceCount: 1, correctCount: correct ? 1 : 0, isCorrect: correct }) }).catch(() => {})
+    fetch(`${API}/api/progress`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId, characterId: char.id, status: 'learning', practiceCount: 1, correctCount: correct ? 1 : 0, isCorrect: correct, isReview: true }) }).catch(() => {})
     if (currentIndex < reviewChars.length - 1) { setCurrentIndex(i => i + 1); setShowAnswer(false) }
     else { setFinished(true) }
   }
@@ -119,7 +120,7 @@ export default function Review() {
 
   if (finished) {
     const correctCount = results.filter(r => r.correct).length
-    const rate = Math.round((correctCount / results.length) * 100)
+    const rate = results.length > 0 ? Math.round((correctCount / results.length) * 100) : 0
     return (
       <div className="pb-24">
         <div className="flex items-center justify-center px-5" style={{ minHeight: '80vh' }}>
