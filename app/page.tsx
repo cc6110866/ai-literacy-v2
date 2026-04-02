@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
+import Image from 'next/image'
+import { BookOpen, PencilLine, Trophy, Settings, Flame, Target, Sparkles } from 'lucide-react'
 import BottomNav from '../components/BottomNav'
 
 export default function Home() {
@@ -40,25 +42,30 @@ export default function Home() {
   }, [])
 
   const progressPct = Math.round((stats.totalLearned / stats.totalChars) * 100)
-  const lvEmoji: Record<number, string> = { 1: '🌱', 2: '🌿', 3: '🌳', 4: '🌲' }
   const lvName: Record<number, string> = { 1: '启蒙', 2: '基础', 3: '进阶', 4: '衔接' }
 
   return (
     <div className="pb-24">
-      {/* 顶部 */}
-      <div className="bg-gradient-to-b from-orange-400 to-amber-400 px-6 pt-14 pb-8 rounded-b-[32px]">
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center gap-2">
-            <span className="text-2xl">🐯</span>
+      {/* 顶部 Banner */}
+      <div className="bg-gradient-to-b from-orange-400 to-amber-400 px-6 pt-12 pb-8 rounded-b-[32px] relative overflow-hidden">
+        {/* 装饰背景圆 */}
+        <div className="absolute -top-8 -right-8 w-40 h-40 bg-white/10 rounded-full" />
+        <div className="absolute -bottom-12 -left-12 w-48 h-48 bg-white/5 rounded-full" />
+
+        <div className="flex items-center justify-between mb-5 relative z-10">
+          <div className="flex items-center gap-3">
+            <Image src="/images/mascot.webp" alt="小老虎" width={40} height={40} className="rounded-full" />
             <span className="text-white font-bold text-xl">AI识字伴侣</span>
           </div>
-          <Link href="/parent" className="text-white/80 text-xl">⚙️</Link>
+          <Link href="/parent" className="text-white/80 hover:text-white transition-colors">
+            <Settings size={22} />
+          </Link>
         </div>
 
-        <h1 className="text-white text-2xl font-bold mb-2">
-          {stats.todayLearned >= stats.todayTarget ? '太棒了！🎉' : stats.todayLearned > 0 ? '继续加油！💪' : '你好，小老虎！🐯'}
+        <h1 className="text-white text-2xl font-bold mb-2 relative z-10">
+          {stats.todayLearned >= stats.todayTarget ? '太棒了！' : stats.todayLearned > 0 ? '继续加油！' : '你好，小老虎！'}
         </h1>
-        <p className="text-white/80 text-sm mb-6">
+        <p className="text-white/80 text-sm mb-6 relative z-10">
           {stats.todayLearned >= stats.todayTarget
             ? `今日任务完成！已认识 ${stats.totalLearned} 个字`
             : stats.todayLearned > 0
@@ -67,7 +74,7 @@ export default function Home() {
         </p>
 
         {/* 进度珠子 */}
-        <div className="flex gap-2">
+        <div className="flex gap-2 relative z-10">
           {Array.from({ length: stats.todayTarget }, (_, i) => (
             <div key={i} className={`flex-1 h-3 rounded-full transition-all ${i < stats.todayLearned ? 'bg-white' : 'bg-white/30'}`} />
           ))}
@@ -75,48 +82,75 @@ export default function Home() {
       </div>
 
       <div className="px-5 -mt-4">
-        {/* CTA */}
+        {/* CTA 按钮 */}
         <Link
           href={stats.dueReview > 0 ? '/review' : '/learn'}
           className="block w-full bg-orange-500 text-white text-center font-bold text-lg py-4 rounded-2xl shadow-lg shadow-orange-500/30 hover:bg-orange-600 transition-colors"
         >
-          {stats.dueReview > 0 ? `📖 ${stats.dueReview} 个字待复习` : '📚 开始学习'}
+          {stats.dueReview > 0 ? (
+            <span className="flex items-center justify-center gap-2">
+              <Sparkles size={20} />
+              {stats.dueReview} 个字待复习
+            </span>
+          ) : (
+            <span className="flex items-center justify-center gap-2">
+              <BookOpen size={20} />
+              开始学习
+            </span>
+          )}
         </Link>
 
         {/* 快捷入口 */}
         <div className="grid grid-cols-3 gap-3 mt-5">
           {[
-            { href: '/learn', emoji: '📚', label: '识字', bg: 'bg-blue-50' },
-            { href: '/practice', emoji: '✏️', label: '练习', bg: 'bg-purple-50' },
-            { href: '/achievement', emoji: '🏆', label: '成就', bg: 'bg-amber-50' },
-          ].map((item) => (
-            <Link key={item.label} href={item.href} className={`${item.bg} rounded-2xl p-4 flex flex-col items-center gap-2 hover:shadow-md transition-shadow`}>
-              <span className="text-2xl">{item.emoji}</span>
-              <span className="text-sm font-bold text-gray-700">{item.label}</span>
-            </Link>
-          ))}
+            { href: '/learn', icon: BookOpen, label: '识字', bg: 'bg-blue-50', color: 'text-blue-500' },
+            { href: '/practice', icon: PencilLine, label: '练习', bg: 'bg-purple-50', color: 'text-purple-500' },
+            { href: '/achievement', icon: Trophy, label: '成就', bg: 'bg-amber-50', color: 'text-amber-500' },
+          ].map((item) => {
+            const Icon = item.icon
+            return (
+              <Link key={item.label} href={item.href} className={`${item.bg} rounded-2xl p-4 flex flex-col items-center gap-2 hover:shadow-md transition-shadow`}>
+                <div className={`w-12 h-12 rounded-xl ${item.bg} flex items-center justify-center`}>
+                  <Icon size={26} className={item.color} strokeWidth={1.8} />
+                </div>
+                <span className="text-sm font-bold text-gray-700">{item.label}</span>
+              </Link>
+            )
+          })}
         </div>
 
         {/* 统计卡片 */}
         <div className="grid grid-cols-2 gap-3 mt-5">
           <div className="bg-white rounded-2xl p-4 shadow-sm">
-            <div className="text-xs text-gray-400 font-medium">已学</div>
-            <div className="text-3xl font-black text-orange-500">{stats.totalLearned}</div>
+            <div className="flex items-center gap-1.5 text-xs text-gray-400 font-medium">
+              <BookOpen size={14} />
+              <span>已学</span>
+            </div>
+            <div className="text-3xl font-black text-orange-500 mt-1">{stats.totalLearned}</div>
             <div className="text-xs text-gray-300">个汉字</div>
           </div>
           <div className="bg-white rounded-2xl p-4 shadow-sm">
-            <div className="text-xs text-gray-400 font-medium">掌握</div>
-            <div className="text-3xl font-black text-green-500">{stats.mastered}</div>
+            <div className="flex items-center gap-1.5 text-xs text-gray-400 font-medium">
+              <Target size={14} />
+              <span>掌握</span>
+            </div>
+            <div className="text-3xl font-black text-green-500 mt-1">{stats.mastered}</div>
             <div className="text-xs text-gray-300">个字</div>
           </div>
           <div className="bg-white rounded-2xl p-4 shadow-sm">
-            <div className="text-xs text-gray-400 font-medium">连续</div>
-            <div className="text-3xl font-black text-orange-500">🔥 {stats.streak}</div>
+            <div className="flex items-center gap-1.5 text-xs text-gray-400 font-medium">
+              <Flame size={14} />
+              <span>连续</span>
+            </div>
+            <div className="text-3xl font-black text-orange-500 mt-1">{stats.streak}</div>
             <div className="text-xs text-gray-300">天</div>
           </div>
           <div className="bg-white rounded-2xl p-4 shadow-sm">
-            <div className="text-xs text-gray-400 font-medium">待复习</div>
-            <div className="text-3xl font-black text-pink-500">{stats.dueReview}</div>
+            <div className="flex items-center gap-1.5 text-xs text-gray-400 font-medium">
+              <Sparkles size={14} />
+              <span>待复习</span>
+            </div>
+            <div className="text-3xl font-black text-pink-500 mt-1">{stats.dueReview}</div>
             <div className="text-xs text-gray-300">个字</div>
           </div>
         </div>
@@ -131,9 +165,9 @@ export default function Home() {
             <div className="h-full bg-gradient-to-r from-orange-400 via-amber-400 to-pink-400 rounded-full transition-all" style={{ width: `${progressPct}%` }} />
           </div>
           <div className="flex items-center gap-2 mt-3 text-sm text-gray-500">
-            <span>{lvEmoji[stats.currentLevel]}</span>
-            <span>L{stats.currentLevel} {lvName[stats.currentLevel]}</span>
-            <span>·</span>
+            <span>L{stats.currentLevel}</span>
+            <span>{lvName[stats.currentLevel]}</span>
+            <span className="text-gray-300">·</span>
             <span>已掌握 {stats.mastered} 字</span>
           </div>
         </div>
@@ -142,7 +176,7 @@ export default function Home() {
         {stats.weekHistory.length > 0 && (
           <div className="bg-amber-50 rounded-2xl p-5 mt-5">
             <div className="flex justify-between items-center mb-4">
-              <span className="text-sm font-bold text-gray-700">📊 本周学习</span>
+              <span className="text-sm font-bold text-gray-700">本周学习</span>
               <span className="text-xs font-bold text-orange-500">近 7 天</span>
             </div>
             <div className="flex items-end justify-between gap-2 h-24">
