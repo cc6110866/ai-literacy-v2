@@ -8,4 +8,4 @@ database_id = "59129a24-c6b2-4065-b9f8-9b424964fbf4"
 
 [[r2_buckets]]
 binding = "ASSETS"
-bucket_name = "guiling-drama-assets"
+bucket_name = "openclaw-myopenclaw"
