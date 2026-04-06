@@ -3,9 +3,10 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
-import { BookOpen, ChevronLeft, Eye, XCircle, CheckCircle2, Sparkles } from 'lucide-react'
+import { BookOpen, ChevronLeft, Eye, XCircle, CheckCircle2, Sparkles, Volume2 } from 'lucide-react'
 import BottomNav from '../../components/BottomNav'
 import { getLocalDate } from '../../lib/utils'
+import { useTTS } from '../../lib/useTTS'
 
 interface CharData { id: number; character: string; pinyin: string; meaning: string; category: string; level: number; topic_group: string }
 
@@ -16,6 +17,7 @@ export default function Review() {
   const [results, setResults] = useState<{ charId: number; correct: boolean }[]>([])
   const [loading, setLoading] = useState(true)
   const [finished, setFinished] = useState(false)
+  const { speak, speaking } = useTTS()
   const [userId] = useState(() => {
     if (typeof window !== 'undefined') {
       return localStorage.getItem('ai-literacy-uid') || 'anonymous'
@@ -172,7 +174,17 @@ export default function Review() {
           <div className="bg-white rounded-3xl overflow-hidden shadow-lg">
             {/* 汉字区 */}
             <div className="px-8 py-12 text-center bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
-              <div className="text-[80px] sm:text-[100px] md:text-[120px] font-bold text-gray-800 leading-none select-none">{currentChar.character}</div>
+              <div className="flex items-center justify-center gap-3">
+                <div className="text-[80px] sm:text-[100px] md:text-[120px] font-bold text-gray-800 leading-none select-none">{currentChar.character}</div>
+                <button
+                  onClick={() => speak(currentChar.character)}
+                  className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 transition-all ${
+                    speaking ? 'bg-indigo-500 text-white scale-110' : 'bg-white/80 text-indigo-400 active:scale-95'
+                  }`}
+                >
+                  <Volume2 size={20} />
+                </button>
+              </div>
               {!showAnswer && <p className="text-gray-400 text-lg mt-4">还记得这个字吗？</p>}
               {showAnswer && (
                 <div className="mt-4">
@@ -186,7 +198,7 @@ export default function Review() {
             {/* 操作区 */}
             <div className="p-6">
               {!showAnswer ? (
-                <button onClick={() => setShowAnswer(true)}
+                <button onClick={() => { setShowAnswer(true); speak(currentChar.character) }}
                   className="w-full py-4 rounded-2xl font-bold text-lg bg-gradient-to-r from-indigo-500 to-purple-500 text-white shadow-lg shadow-indigo-500/30 flex items-center justify-center gap-2">
                   <Eye size={20} /> 看答案
                 </button>

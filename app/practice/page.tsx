@@ -3,9 +3,10 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
-import { PencilLine, ChevronLeft, Star, RotateCcw, ArrowRight } from 'lucide-react'
+import { PencilLine, ChevronLeft, Star, RotateCcw, ArrowRight, Volume2 } from 'lucide-react'
 import BottomNav from '../../components/BottomNav'
 import { getLocalDate } from '../../lib/utils'
+import { useTTS } from '../../lib/useTTS'
 
 interface CharData { id: number; character: string; pinyin: string; meaning: string; category: string; level: number; topic_group: string }
 
@@ -39,6 +40,7 @@ export default function Practice() {
     return 'anonymous'
   })
   const autoTimerRef = useRef<NodeJS.Timeout | null>(null)
+  const { speak, speaking } = useTTS()
 
   const API = ''
 
@@ -109,6 +111,8 @@ export default function Practice() {
     localStorage.setItem(correctKey, String(parseInt(localStorage.getItem(correctKey) || '0') + (isCorrect ? 1 : 0)))
     localStorage.setItem(totalKey, String(parseInt(localStorage.getItem(totalKey) || '0') + 1))
     fetch(`${API}/api/progress`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId, characterId: questions[currentIndex].charId, status: 'learning', practiceCount: 1, correctCount: isCorrect ? 1 : 0, isCorrect, isReview: false }) }).catch(() => {})
+    // 朗读正确答案
+    speak(questions[currentIndex].char)
     // 自动跳转下一题（1.5秒后）
     autoTimerRef.current = setTimeout(() => nextQuestion(), 1500)
   }, [selected, questions, currentIndex, userId])
@@ -227,12 +231,22 @@ export default function Practice() {
           <div className="text-center mb-8">
             {q.type === 'select_pinyin' ? (
               <>
-                <div className="text-[64px] sm:text-[72px] md:text-[80px] font-bold text-gray-800 select-none leading-none">{q.prompt}</div>
+                <div className="flex items-center justify-center gap-3">
+                  <div className="text-[64px] sm:text-[72px] md:text-[80px] font-bold text-gray-800 select-none leading-none">{q.prompt}</div>
+                  <button onClick={() => speak(q.char)} className={`w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 transition-all ${speaking ? 'bg-orange-500 text-white scale-110' : 'bg-orange-50 text-orange-400 active:scale-95'}`}>
+                    <Volume2 size={18} />
+                  </button>
+                </div>
                 <p className="text-gray-500 text-lg mt-3">{typeLabel}</p>
               </>
             ) : (
               <>
-                <div className="text-4xl font-bold text-orange-500">{q.prompt}</div>
+                <div className="flex items-center justify-center gap-3">
+                  <div className="text-4xl font-bold text-orange-500">{q.prompt}</div>
+                  <button onClick={() => speak(q.char)} className={`w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 transition-all ${speaking ? 'bg-orange-500 text-white scale-110' : 'bg-orange-50 text-orange-400 active:scale-95'}`}>
+                    <Volume2 size={18} />
+                  </button>
+                </div>
                 <p className="text-gray-500 mt-2">{typeLabel}</p>
               </>
             )}

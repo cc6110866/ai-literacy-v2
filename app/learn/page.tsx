@@ -3,9 +3,10 @@
 import { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
-import { BookOpen, PencilLine, ChevronLeft, ChevronRight, Eye, CheckCircle2, Lightbulb, PenTool, Tag, Layers, RotateCcw, Home, Sparkles } from 'lucide-react'
+import { BookOpen, PencilLine, ChevronLeft, ChevronRight, Eye, CheckCircle2, Lightbulb, PenTool, Tag, Layers, RotateCcw, Home, Sparkles, Volume2 } from 'lucide-react'
 import BottomNav from '../../components/BottomNav'
 import { getLocalDate, getYesterdayDate } from '../../lib/utils'
+import { useTTS } from '../../lib/useTTS'
 
 interface CharData {
   id: number; character: string; pinyin: string; meaning: string
@@ -27,6 +28,7 @@ export default function Learn() {
   const [currentTopic, setCurrentTopic] = useState('')
   const [currentLevel, setCurrentLevel] = useState(1)
   const [reviewCompleted, setReviewCompleted] = useState(0)
+  const { speak, speaking } = useTTS()
 
   const [userId] = useState(() => {
     if (typeof window !== 'undefined') {
@@ -206,6 +208,14 @@ export default function Learn() {
   const chars = phase === 'review' ? reviewChars : newChars
   const currentChar = chars[currentIndex]
 
+  // 切字时自动朗读
+  useEffect(() => {
+    if (!loading && currentChar && phase !== 'done') {
+      const timer = setTimeout(() => speak(currentChar.character), 400)
+      return () => clearTimeout(timer)
+    }
+  }, [currentIndex, loading, currentChar, phase])
+
   if (loading) {
     return (
       <div className="pb-24">
@@ -312,7 +322,17 @@ export default function Learn() {
               <span className="bg-white text-xs font-medium px-3 py-1 rounded-full text-gray-500">{currentChar.category}</span>
             </div>
             <div className="pt-4">
-              <div className="text-[72px] sm:text-[88px] md:text-[100px] font-bold text-gray-800 leading-none select-none">{currentChar.character}</div>
+              <div className="flex items-center justify-center gap-3">
+                <div className="text-[72px] sm:text-[88px] md:text-[100px] font-bold text-gray-800 leading-none select-none">{currentChar.character}</div>
+                <button
+                  onClick={(e) => { e.stopPropagation(); speak(currentChar.character) }}
+                  className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 transition-all ${
+                    speaking ? 'bg-orange-500 text-white scale-110' : 'bg-orange-50 text-orange-400 active:scale-95'
+                  }`}
+                >
+                  <Volume2 size={20} />
+                </button>
+              </div>
               <div className="text-2xl font-medium text-orange-500 mt-3">{currentChar.pinyin}</div>
             </div>
             {/* 底部提示 */}
