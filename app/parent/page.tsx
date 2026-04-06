@@ -103,7 +103,7 @@ export default function Parent() {
   if (loading) {
     return (
       <div className="pb-24">
-        <div className="sticky top-0 z-40 bg-white/80 backdrop-blur-xl border-b border-gray-100 px-5 py-4 flex items-center gap-3">
+        <div className="sticky top-0 z-40 bg-white/80 backdrop-blur-xl border-b border-gray-100 px-5 pt-4 pb-4 safe-area-top flex items-center gap-3">
           <Link href="/" className="text-gray-400"><ChevronLeft size={22} /></Link>
           <h1 className="font-bold text-gray-800">家长中心</h1>
           <Users size={18} className="ml-auto text-orange-500" />
@@ -120,7 +120,7 @@ export default function Parent() {
   return (
     <div className="pb-24">
       {/* 顶栏 */}
-      <div className="sticky top-0 z-40 bg-white/80 backdrop-blur-xl border-b border-gray-100 px-5 py-4 flex items-center gap-3">
+      <div className="sticky top-0 z-40 bg-white/80 backdrop-blur-xl border-b border-gray-100 px-5 pt-4 pb-4 safe-area-top flex items-center gap-3">
         <Link href="/" className="text-gray-400"><ChevronLeft size={22} /></Link>
         <h1 className="font-bold text-gray-800">家长中心</h1>
         <Users size={18} className="ml-auto text-orange-500" />

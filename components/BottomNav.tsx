@@ -12,7 +12,7 @@ export default function BottomNav({ active }: { active: string }) {
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 bg-white/80 backdrop-blur-xl border-t border-gray-100">
-      <div className="max-w-lg mx-auto flex justify-around items-center pt-2 pb-6">
+      <div className="max-w-lg mx-auto flex justify-around items-center pt-2 pb-6" style={{ paddingBottom: 'max(1.5rem, env(safe-area-inset-bottom, 0px))' }}>
         {items.map((item) => {
           const Icon = item.icon
           return (

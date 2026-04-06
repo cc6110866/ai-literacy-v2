@@ -1,8 +1,83 @@
-# D1 数据库实际表结构（2026-04-02 确认）
+# D1 数据库结构（2026-04-02 确认）
 
-> ⚠️ 以此文件为准，不以 init-db.sql 为准。init-db.sql 是 V2 新建的空表结构，与 V1 实际表不同。
+> ⚠️ 以此文件为准，所有开发严格参照此结构。
 
-## Character 表（23 列）
+## 数据库信息
+
+- **数据库名**: ai-literacy-db
+- **数据库 ID**: 59129a24-c6b2-4065-b9f8-9b424964fbf4
+- **Account ID**: 1d0ee2a89d99b4fd70eca87e7fbc8f6a
+- **Cloudflare 绑定变量名**: DB
+- **外键约束**: Progress.characterId → Character.id
+- **总字数**: 1,862 个汉字
+
+---
+
+## 建表 SQL
+
+```sql
+-- Character 表（23 列）
+CREATE TABLE Character (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  character TEXT NOT NULL,
+  pinyin TEXT NOT NULL,
+  tone INTEGER NOT NULL,
+  radical TEXT NOT NULL,
+  strokes INTEGER NOT NULL,
+  level INTEGER NOT NULL,
+  frequency INTEGER NOT NULL,
+  meaning TEXT,
+  origin TEXT,
+  story TEXT,
+  examples TEXT,
+  audioUrl TEXT,
+  imageUrl TEXT,
+  strokeGif TEXT,
+  difficulty INTEGER DEFAULT 5,
+  relatedChars TEXT,
+  createdAt TEXT DEFAULT (datetime('now')),
+  updatedAt TEXT DEFAULT (datetime('now')),
+  pos TEXT,
+  category TEXT,
+  topic_group TEXT DEFAULT '通用'
+);
+
+-- Progress 表（11 列）
+CREATE TABLE Progress (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  userId TEXT NOT NULL,
+  characterId INTEGER NOT NULL,
+  status TEXT DEFAULT 'new',
+  practiceCount INTEGER DEFAULT 0,
+  correctCount INTEGER DEFAULT 0,
+  lastPractice TEXT DEFAULT (datetime('now')),
+  nextReview TEXT,
+  reviewCount INTEGER DEFAULT 0,
+  createdAt TEXT DEFAULT (datetime('now')),
+  updatedAt TEXT DEFAULT (datetime('now')),
+  FOREIGN KEY (characterId) REFERENCES Character(id)
+);
+
+-- DailyRecord 表（10 列）
+CREATE TABLE DailyRecord (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  userId TEXT NOT NULL,
+  date TEXT NOT NULL,
+  charactersLearned TEXT,
+  charactersReviewed TEXT,
+  newCount INTEGER DEFAULT 0,
+  reviewCount INTEGER DEFAULT 0,
+  correctRate REAL DEFAULT 0,
+  createdAt TEXT DEFAULT (datetime('now')),
+  updatedAt TEXT DEFAULT (datetime('now'))
+);
+```
+
+---
+
+## 列说明
+
+### Character 表
 
 | 列名 | 类型 | 约束 | 默认值 | 说明 |
 |------|------|------|--------|------|
@@ -29,7 +104,7 @@
 | category | TEXT | | - | 分类 |
 | topic_group | TEXT | | '通用' | 主题组 |
 
-## Progress 表（11 列）
+### Progress 表
 
 | 列名 | 类型 | 约束 | 默认值 | 说明 |
 |------|------|------|--------|------|
@@ -45,7 +120,7 @@
 | createdAt | TEXT | | datetime('now') | 创建时间 |
 | updatedAt | TEXT | | datetime('now') | 更新时间 |
 
-## DailyRecord 表（10 列）
+### DailyRecord 表
 
 | 列名 | 类型 | 约束 | 默认值 | 说明 |
 |------|------|------|--------|------|
@@ -58,13 +133,4 @@
 | reviewCount | INTEGER | | 0 | 复习数量 |
 | correctRate | REAL | | 0 | 正确率 |
 | createdAt | TEXT | | datetime('now') | 创建时间 |
-| updatedAt | TEXT | | datetime('now') | 更新时间（2026-04-02 新增） |
-
-## 数据库信息
-
-- **数据库名**: ai-literacy-db
-- **数据库 ID**: 59129a24-c6b2-4065-b9f8-9b424964fbf4
-- **Account ID**: 1d0ee2a89d99b4fd70eca87e7fbc8f6a
-- **Cloudflare 绑定变量名**: DB
-- **外键约束**: Progress.characterId → Character.id
-- **总字数**: 1,862 个汉字
+| updatedAt | TEXT | | datetime('now') | 更新时间 |

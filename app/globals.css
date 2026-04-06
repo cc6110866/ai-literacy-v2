@@ -9,4 +9,30 @@ html {
 
 body {
   font-family: -apple-system, BlinkMacSystemFont, "Noto Sans CJK SC", "PingFang SC", "Microsoft YaHei", sans-serif;
+  background-color: #fbf6ef;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-y: none;
+}
+
+/* 移动端底部防漏底 */
+html, body {
+  min-height: 100%;
+  min-height: 100dvh;
+}
+
+/* iPhone 安全区域 + 防止橡皮筋效果露出透明底 */
+body {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+/* 顶部安全区域适配（灵动岛/刘海屏） */
+.safe-area-top {
+  padding-top: env(safe-area-inset-top, 0px);
+}
+
+/* 页面最外层确保背景铺满 */
+#__next {
+  min-height: 100%;
+  min-height: 100dvh;
+  background-color: #fbf6ef;
 }

@@ -88,7 +88,7 @@ export default function Home() {
   return (
     <div className="pb-24">
       {/* 顶部 Banner */}
-      <div className="bg-gradient-to-b from-orange-400 to-amber-400 px-6 pt-12 pb-8 rounded-b-[32px] relative overflow-hidden">
+      <div className="bg-gradient-to-b from-orange-400 to-amber-400 px-6 pb-8 rounded-b-[32px] safe-area-top relative overflow-hidden">
         {/* 装饰背景圆 */}
         <div className="absolute -top-8 -right-8 w-40 h-40 bg-white/10 rounded-full" />
         <div className="absolute -bottom-12 -left-12 w-48 h-48 bg-white/5 rounded-full" />

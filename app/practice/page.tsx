@@ -125,7 +125,7 @@ export default function Practice() {
   if (loading) {
     return (
       <div className="pb-24">
-        <div className="sticky top-0 z-40 bg-white/80 backdrop-blur-xl border-b border-gray-100 px-5 py-4 flex items-center gap-3">
+        <div className="sticky top-0 z-40 bg-white/80 backdrop-blur-xl border-b border-gray-100 px-5 pt-4 pb-4 safe-area-top flex items-center gap-3">
           <Link href="/" className="text-gray-400"><ChevronLeft size={22} /></Link>
           <h1 className="font-bold text-gray-800">练习</h1>
         </div>
@@ -200,7 +200,7 @@ export default function Practice() {
   return (
     <div className="pb-24">
       {/* 顶栏 */}
-      <div className="sticky top-0 z-40 bg-white/80 backdrop-blur-xl border-b border-gray-100 px-5 py-4 flex items-center gap-3">
+      <div className="sticky top-0 z-40 bg-white/80 backdrop-blur-xl border-b border-gray-100 px-5 pt-4 pb-4 safe-area-top flex items-center gap-3">
         <Link href="/" className="text-gray-400"><ChevronLeft size={22} /></Link>
         <h1 className="font-bold text-gray-800">练习</h1>
         <div className="ml-auto flex items-center gap-1 text-orange-500 font-bold text-sm">
@@ -219,7 +219,7 @@ export default function Practice() {
           <div className="text-center mb-8">
             {q.type === 'select_pinyin' ? (
               <>
-                <div className="text-[80px] font-bold text-gray-800 select-none leading-none">{q.prompt}</div>
+                <div className="text-[64px] sm:text-[72px] md:text-[80px] font-bold text-gray-800 select-none leading-none">{q.prompt}</div>
                 <p className="text-gray-500 text-lg mt-3">{typeLabel}</p>
               </>
             ) : (

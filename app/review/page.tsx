@@ -86,7 +86,7 @@ export default function Review() {
   if (loading) {
     return (
       <div className="pb-24">
-        <div className="sticky top-0 z-40 bg-white/80 backdrop-blur-xl border-b border-gray-100 px-5 py-4 flex items-center gap-3">
+        <div className="sticky top-0 z-40 bg-white/80 backdrop-blur-xl border-b border-gray-100 px-5 pt-4 pb-4 safe-area-top flex items-center gap-3">
           <Link href="/" className="text-gray-400"><ChevronLeft size={22} /></Link>
           <h1 className="font-bold text-gray-800">复习</h1>
         </div>
@@ -154,7 +154,7 @@ export default function Review() {
   return (
     <div className="pb-24">
       {/* 顶栏 */}
-      <div className="sticky top-0 z-40 bg-white/80 backdrop-blur-xl border-b border-gray-100 px-5 py-4 flex items-center gap-3">
+      <div className="sticky top-0 z-40 bg-white/80 backdrop-blur-xl border-b border-gray-100 px-5 pt-4 pb-4 safe-area-top flex items-center gap-3">
         <Link href="/" className="text-gray-400"><ChevronLeft size={22} /></Link>
         <h1 className="font-bold text-gray-800">复习</h1>
         <span className="ml-auto text-xs font-semibold bg-orange-100 text-orange-600 px-3 py-1 rounded-full">
@@ -172,7 +172,7 @@ export default function Review() {
           <div className="bg-white rounded-3xl overflow-hidden shadow-lg">
             {/* 汉字区 */}
             <div className="px-8 py-12 text-center bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
-              <div className="text-[120px] font-bold text-gray-800 leading-none select-none">{currentChar.character}</div>
+              <div className="text-[80px] sm:text-[100px] md:text-[120px] font-bold text-gray-800 leading-none select-none">{currentChar.character}</div>
               {!showAnswer && <p className="text-gray-400 text-lg mt-4">还记得这个字吗？</p>}
               {showAnswer && (
                 <div className="mt-4">

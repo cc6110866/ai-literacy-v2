@@ -209,7 +209,7 @@ export default function Learn() {
   if (loading) {
     return (
       <div className="pb-24">
-        <div className="sticky top-0 z-40 bg-white/80 backdrop-blur-xl border-b border-gray-100 px-5 py-4 flex items-center gap-3">
+        <div className="sticky top-0 z-40 bg-white/80 backdrop-blur-xl border-b border-gray-100 px-5 pt-4 pb-4 safe-area-top flex items-center gap-3">
           <Link href="/" className="text-gray-400"><ChevronLeft size={22} /></Link>
           <h1 className="font-bold text-gray-800">识字</h1>
           <div className="ml-auto"><BookOpen size={18} className="text-orange-500" /></div>
@@ -282,7 +282,7 @@ export default function Learn() {
   return (
     <div className="pb-24">
       {/* 顶栏 */}
-      <div className="sticky top-0 z-40 bg-white/80 backdrop-blur-xl border-b border-gray-100 px-5 py-4 flex items-center gap-3">
+      <div className="sticky top-0 z-40 bg-white/80 backdrop-blur-xl border-b border-gray-100 px-5 pt-4 pb-4 safe-area-top flex items-center gap-3">
         <Link href="/" className="text-gray-400 hover:text-gray-600"><ChevronLeft size={22} /></Link>
         <h1 className="font-bold text-gray-800 text-sm">
           {phase === 'review' ? '复习旧字' : `L${currentLevel} ${levelName[currentLevel]}`}
@@ -312,7 +312,7 @@ export default function Learn() {
               <span className="bg-white text-xs font-medium px-3 py-1 rounded-full text-gray-500">{currentChar.category}</span>
             </div>
             <div className="pt-4">
-              <div className="text-[100px] font-bold text-gray-800 leading-none select-none">{currentChar.character}</div>
+              <div className="text-[72px] sm:text-[88px] md:text-[100px] font-bold text-gray-800 leading-none select-none">{currentChar.character}</div>
               <div className="text-2xl font-medium text-orange-500 mt-3">{currentChar.pinyin}</div>
             </div>
             {/* 底部提示 */}
