@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 import { PencilLine, ChevronLeft, Star, RotateCcw, ArrowRight } from 'lucide-react'
@@ -38,6 +38,7 @@ export default function Practice() {
     }
     return 'anonymous'
   })
+  const autoTimerRef = useRef<NodeJS.Timeout | null>(null)
 
   const API = ''
 
@@ -96,6 +97,7 @@ export default function Practice() {
 
   const handleAnswer = useCallback((index: number) => {
     if (selected !== null) return
+    if (autoTimerRef.current) { clearTimeout(autoTimerRef.current); autoTimerRef.current = null }
     setSelected(index)
     const isCorrect = index === questions[currentIndex].correctIndex
     if (isCorrect) setScore(s => s + 1)
@@ -107,9 +109,12 @@ export default function Practice() {
     localStorage.setItem(correctKey, String(parseInt(localStorage.getItem(correctKey) || '0') + (isCorrect ? 1 : 0)))
     localStorage.setItem(totalKey, String(parseInt(localStorage.getItem(totalKey) || '0') + 1))
     fetch(`${API}/api/progress`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId, characterId: questions[currentIndex].charId, status: 'learning', practiceCount: 1, correctCount: isCorrect ? 1 : 0, isCorrect, isReview: false }) }).catch(() => {})
+    // 自动跳转下一题（1.5秒后）
+    autoTimerRef.current = setTimeout(() => nextQuestion(), 1500)
   }, [selected, questions, currentIndex, userId])
 
   const nextQuestion = () => {
+    if (autoTimerRef.current) { clearTimeout(autoTimerRef.current); autoTimerRef.current = null }
     if (currentIndex < questions.length - 1) { setCurrentIndex(i => i + 1); setSelected(null) }
     else {
       setFinished(true)
@@ -119,6 +124,9 @@ export default function Practice() {
       }
     }
   }
+
+  // 清理定时器
+  useEffect(() => () => { if (autoTimerRef.current) clearTimeout(autoTimerRef.current) }, [])
 
   const restart = () => { window.location.reload() }
 
@@ -258,8 +266,8 @@ export default function Practice() {
           {selected !== null && (
             <button onClick={nextQuestion}
               className="w-full mt-6 py-4 rounded-2xl bg-orange-500 text-white font-bold text-lg shadow-lg shadow-orange-500/30 flex items-center justify-center gap-2">
-              {currentIndex < questions.length - 1 ? '下一题' : '查看结果'}
-              <ArrowRight size={18} />
+              <span>{currentIndex < questions.length - 1 ? '下一题 →' : '查看结果 →'}</span>
+              <span className="text-xs opacity-60 ml-1">自动跳转中...</span>
             </button>
           )}
         </div>
