@@ -177,7 +177,7 @@ export default function Review() {
               <div className="flex items-center justify-center gap-3">
                 <div className="text-[80px] sm:text-[100px] md:text-[120px] font-bold text-gray-800 leading-none select-none">{currentChar.character}</div>
                 <button
-                  onClick={() => speak(currentChar.character)}
+                  onClick={() => speak(currentChar.character, currentChar.pinyin)}
                   className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 transition-all ${
                     speaking ? 'bg-indigo-500 text-white scale-110' : 'bg-white/80 text-indigo-400 active:scale-95'
                   }`}
@@ -198,7 +198,7 @@ export default function Review() {
             {/* 操作区 */}
             <div className="p-6">
               {!showAnswer ? (
-                <button onClick={() => { setShowAnswer(true); speak(currentChar.character) }}
+                <button onClick={() => { setShowAnswer(true); speak(currentChar.character, currentChar.pinyin) }}
                   className="w-full py-4 rounded-2xl font-bold text-lg bg-gradient-to-r from-indigo-500 to-purple-500 text-white shadow-lg shadow-indigo-500/30 flex items-center justify-center gap-2">
                   <Eye size={20} /> 看答案
                 </button>

@@ -211,7 +211,7 @@ export default function Learn() {
   // 切字时自动朗读
   useEffect(() => {
     if (!loading && currentChar && phase !== 'done') {
-      const timer = setTimeout(() => speak(currentChar.character), 400)
+      const timer = setTimeout(() => speak(currentChar.character, currentChar.pinyin), 400)
       return () => clearTimeout(timer)
     }
   }, [currentIndex, loading, currentChar, phase])
@@ -325,7 +325,7 @@ export default function Learn() {
               <div className="flex items-center justify-center gap-3">
                 <div className="text-[72px] sm:text-[88px] md:text-[100px] font-bold text-gray-800 leading-none select-none">{currentChar.character}</div>
                 <button
-                  onClick={(e) => { e.stopPropagation(); speak(currentChar.character) }}
+                  onClick={(e) => { e.stopPropagation(); speak(currentChar.character, currentChar.pinyin) }}
                   className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 transition-all ${
                     speaking ? 'bg-orange-500 text-white scale-110' : 'bg-orange-50 text-orange-400 active:scale-95'
                   }`}
