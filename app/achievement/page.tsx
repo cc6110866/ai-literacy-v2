@@ -91,9 +91,12 @@ export default function AchievementPage() {
             const current = getValue(a)
             const progress = Math.min(100, Math.round((current / a.target) * 100))
             return (
-              <div key={a.id} className={`rounded-2xl p-3 ${
+              <div key={a.id} className={`rounded-2xl p-3 relative overflow-hidden ${
                 isUnlocked ? 'bg-gradient-to-br from-amber-50 to-orange-50 border-2 border-orange-200 shadow-sm' : 'bg-orange-50/50 border border-orange-100'
               }`}>
+                {isUnlocked && (
+                  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-shimmer" />
+                )}
                 <div className={`flex items-center gap-2 ${type === 'perfect' ? 'flex-col text-center' : ''}`}>
                   <span className={`text-2xl ${isUnlocked ? '' : 'grayscale opacity-40'}`}>{a.icon}</span>
                   <div>
