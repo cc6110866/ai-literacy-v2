@@ -5,7 +5,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
 
   try {
     const result = await env.DB.prepare(
-      'SELECT id, character, pinyin, meaning, story, category, strokes, level, topic_group, origin FROM Character WHERE id = ?'
+      'SELECT id, character, pinyin, meaning, story, category, strokes, level, topic_group, origin, audio_url FROM Character WHERE id = ?'
     ).bind(id).first()
 
     if (!result) {

@@ -9,35 +9,15 @@ export function useTTS() {
   const [speaking, setSpeaking] = useState(false)
   const audioRef = useRef<HTMLAudioElement | null>(null)
 
-  // 拼音声调符号转文件名格式
-  const pinyinToFilename = useCallback((pinyin: string): string => {
-    const map: Record<string, string> = {
-      'ā': 'a1', 'á': 'a2', 'ǎ': 'a3', 'à': 'a4',
-      'ē': 'e1', 'é': 'e2', 'ě': 'e3', 'è': 'e4',
-      'ī': 'i1', 'í': 'i2', 'ǐ': 'i3', 'ì': 'i4',
-      'ō': 'o1', 'ó': 'o2', 'ǒ': 'o3', 'ò': 'o4',
-      'ū': 'u1', 'ú': 'u2', 'ǔ': 'u3', 'ù': 'u4',
-      'ǖ': 'v1', 'ǘ': 'v2', 'ǚ': 'v3', 'ǜ': 'v4',
-    }
-    let safe = pinyin
-    for (const [tone, num] of Object.entries(map)) {
-      safe = safe.replaceAll(tone, num)
-    }
-    return safe
-  }, [])
-
-  // 使用 R2 音频播放
-  const playR2Audio = useCallback((pinyin: string): Promise<boolean> => {
+  // 使用 R2 音频播放（通过 audio_url）
+  const playR2Audio = useCallback((audioUrl: string): Promise<boolean> => {
     return new Promise((resolve) => {
-      const filename = pinyinToFilename(pinyin)
-      const url = `/api/audio?pinyin=${encodeURIComponent(pinyin)}`
-
       if (audioRef.current) {
         audioRef.current.pause()
         audioRef.current = null
       }
 
-      const audio = new Audio(url)
+      const audio = new Audio(audioUrl)
       audioRef.current = audio
 
       audio.onplay = () => setSpeaking(true)
@@ -55,7 +35,7 @@ export function useTTS() {
 
       audio.play().catch(() => resolve(false))
     })
-  }, [pinyinToFilename])
+  }, [])
 
   // Web Speech API fallback
   const speakWebSpeech = useCallback((text: string) => {
@@ -81,10 +61,10 @@ export function useTTS() {
     window.speechSynthesis.speak(utterance)
   }, [])
 
-  // 主 speak 函数：优先 R2，失败 fallback 到 Web Speech
-  const speak = useCallback(async (character: string, pinyin?: string) => {
-    if (pinyin) {
-      const success = await playR2Audio(pinyin)
+  // 主 speak 函数：优先 R2（audio_url），失败 fallback 到 Web Speech
+  const speak = useCallback(async (character: string, audioUrl?: string) => {
+    if (audioUrl) {
+      const success = await playR2Audio(audioUrl)
       if (success) return
     }
     // Fallback: 用 Web Speech API 读字符

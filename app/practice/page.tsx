@@ -8,7 +8,7 @@ import BottomNav from '../../components/BottomNav'
 import { getLocalDate } from '../../lib/utils'
 import { useTTS } from '../../lib/useTTS'
 
-interface CharData { id: number; character: string; pinyin: string; meaning: string; category: string; level: number; topic_group: string }
+interface CharData { id: number; character: string; pinyin: string; meaning: string; category: string; level: number; topic_group: string; audio_url?: string }
 
 interface Question {
   type: 'select_pinyin' | 'select_char'
@@ -18,6 +18,7 @@ interface Question {
   charId: number
   char: string
   pinyin: string
+  audio_url?: string
 }
 
 function shuffle<T>(arr: T[]): T[] {
@@ -75,7 +76,7 @@ export default function Practice() {
           if (learned.length >= 4) buildQuestions(shuffle<CharData>(learned).slice(0, 20))
         }
       } catch {
-        setQuestions([{ type: 'select_pinyin', prompt: '一', options: ['yī', 'èr', 'sān', 'sì'], correctIndex: 0, charId: 1, char: '一', pinyin: 'yī' }])
+        setQuestions([{ type: 'select_pinyin', prompt: '一', options: ['yī', 'èr', 'sān', 'sì'], correctIndex: 0, charId: 1, char: '一', pinyin: 'yī', audio_url: '/api/audio?pinyin=y%C4%AB' }])
       } finally { setLoading(false) }
     }
 
@@ -85,12 +86,12 @@ export default function Practice() {
         const wrongPinyin = shuffle(chars.filter(x => x.id !== c.id && x.pinyin !== c.pinyin)).slice(0, 3).map(x => x.pinyin)
         if (wrongPinyin.length >= 3) {
           const options = shuffle([c.pinyin, ...wrongPinyin])
-          qs.push({ type: 'select_pinyin', prompt: c.character, options, correctIndex: options.indexOf(c.pinyin), charId: c.id, char: c.character, pinyin: c.pinyin })
+          qs.push({ type: 'select_pinyin', prompt: c.character, options, correctIndex: options.indexOf(c.pinyin), charId: c.id, char: c.character, pinyin: c.pinyin, audio_url: c.audio_url })
         }
         const wrongChars = shuffle(chars.filter(x => x.id !== c.id)).slice(0, 3).map(x => x.character)
         if (wrongChars.length >= 3) {
           const options = shuffle([c.character, ...wrongChars])
-          qs.push({ type: 'select_char', prompt: c.pinyin, options, correctIndex: options.indexOf(c.character), charId: c.id, char: c.character, pinyin: c.pinyin })
+          qs.push({ type: 'select_char', prompt: c.pinyin, options, correctIndex: options.indexOf(c.character), charId: c.id, char: c.character, pinyin: c.pinyin, audio_url: c.audio_url })
         }
       }
       setQuestions(shuffle(qs).slice(0, 10))
@@ -113,7 +114,7 @@ export default function Practice() {
     localStorage.setItem(totalKey, String(parseInt(localStorage.getItem(totalKey) || '0') + 1))
     fetch(`${API}/api/progress`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId, characterId: questions[currentIndex].charId, status: 'learning', practiceCount: 1, correctCount: isCorrect ? 1 : 0, isCorrect, isReview: false }) }).catch(() => {})
     // 朗读正确答案
-    speak(questions[currentIndex].char, questions[currentIndex].pinyin)
+    speak(questions[currentIndex].char, questions[currentIndex].audio_url)
     // 自动跳转下一题（1.5秒后）
     autoTimerRef.current = setTimeout(() => nextQuestion(), 1500)
   }, [selected, questions, currentIndex, userId])
@@ -234,7 +235,7 @@ export default function Practice() {
               <>
                 <div className="flex items-center justify-center gap-3">
                   <div className="text-[64px] sm:text-[72px] md:text-[80px] font-bold text-gray-800 select-none leading-none">{q.prompt}</div>
-                  <button onClick={() => speak(q.char, q.pinyin)} className={`w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 transition-all ${speaking ? 'bg-orange-500 text-white scale-110' : 'bg-orange-50 text-orange-400 active:scale-95'}`}>
+                  <button onClick={() => speak(q.char, q.audio_url)} className={`w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 transition-all ${speaking ? 'bg-orange-500 text-white scale-110' : 'bg-orange-50 text-orange-400 active:scale-95'}`}>
                     <Volume2 size={18} />
                   </button>
                 </div>
@@ -244,7 +245,7 @@ export default function Practice() {
               <>
                 <div className="flex items-center justify-center gap-3">
                   <div className="text-4xl font-bold text-orange-500">{q.prompt}</div>
-                  <button onClick={() => speak(q.char, q.pinyin)} className={`w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 transition-all ${speaking ? 'bg-orange-500 text-white scale-110' : 'bg-orange-50 text-orange-400 active:scale-95'}`}>
+                  <button onClick={() => speak(q.char, q.audio_url)} className={`w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 transition-all ${speaking ? 'bg-orange-500 text-white scale-110' : 'bg-orange-50 text-orange-400 active:scale-95'}`}>
                     <Volume2 size={18} />
                   </button>
                 </div>
