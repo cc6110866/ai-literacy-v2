@@ -33,6 +33,8 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
       return getWeekHistory(env, userId)
     } else if (mode === 'review') {
       return getDueReview(env, userId)
+    } else if (mode === 'all') {
+      return getAllProgress(env, userId)
     }
     return new Response(JSON.stringify({ success: false, error: 'Unknown mode' }), {
       status: 400, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
@@ -189,12 +191,35 @@ async function getDueReview(env: any, userId: string) {
   })
 }
 
+// 获取全部学习进度（用于云端同步）
+async function getAllProgress(env: any, userId: string) {
+  const result: any = await env.DB.prepare(`
+    SELECT characterId, status, practiceCount, correctCount, nextReview, reviewCount,
+           unixepoch(lastPractice) * 1000 as lastPracticeTs
+    FROM Progress WHERE userId = ?
+  `).bind(userId).all()
+
+  return new Response(JSON.stringify({
+    success: true,
+    data: result.results || [],
+  }), {
+    headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*',
+      'Cache-Control': 'no-store' },
+  })
+}
+
 // POST: 更新进度
 export const onRequestPost: PagesFunction<Env> = async (context) => {
   const { request, env } = context
 
   try {
     const body: any = await request.json()
+
+    // 批量同步模式
+    if (body.mode === 'sync' && Array.isArray(body.progress)) {
+      return syncProgress(env, body)
+    }
+
     const { userId, characterId, status, practiceCount, correctCount, isCorrect, isReview } = body
 
     if (!userId || !characterId) {
@@ -280,6 +305,54 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
     })
   }
+}
+
+// 批量同步进度（从客户端上传）
+async function syncProgress(env: any, body: any) {
+  const { userId, progress } = body
+  if (!userId || !Array.isArray(progress)) {
+    return new Response(JSON.stringify({ success: false, error: 'Invalid sync payload' }), {
+      status: 400,
+      headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
+    })
+  }
+
+  const today = new Date().toISOString().slice(0, 10)
+  let synced = 0
+
+  for (const item of progress) {
+    const { characterId, status, practiceCount, correctCount, nextReview, reviewCount } = item
+    if (!characterId) continue
+
+    const existing: any = await env.DB.prepare(
+      'SELECT practiceCount, correctCount, reviewCount FROM Progress WHERE userId = ? AND characterId = ?'
+    ).bind(userId, characterId).first()
+
+    if (existing) {
+      // 取较大值合并
+      const newPractice = Math.max(existing.practiceCount || 0, practiceCount || 0)
+      const newCorrect = Math.max(existing.correctCount || 0, correctCount || 0)
+      const newReview = Math.max(existing.reviewCount || 0, reviewCount || 0)
+      const nextReviewStr = nextReview ? new Date(nextReview).toISOString() : new Date(Date.now() + 86400000).toISOString()
+
+      await env.DB.prepare(`
+        UPDATE Progress SET status = ?, practiceCount = ?, correctCount = ?,
+          nextReview = ?, reviewCount = ?, lastPractice = datetime('now'), updatedAt = datetime('now')
+        WHERE userId = ? AND characterId = ?
+      `).bind(status || 'learning', newPractice, newCorrect, nextReviewStr, newReview, userId, characterId).run()
+    } else {
+      const nextReviewStr = nextReview ? new Date(nextReview).toISOString() : new Date(Date.now() + 86400000).toISOString()
+      await env.DB.prepare(`
+        INSERT INTO Progress (userId, characterId, status, practiceCount, correctCount, nextReview, reviewCount)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+      `).bind(userId, characterId, status || 'learning', practiceCount || 0, correctCount || 0, nextReviewStr, reviewCount || 0).run()
+    }
+    synced++
+  }
+
+  return new Response(JSON.stringify({ success: true, synced }), {
+    headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
+  })
 }
 
 export const onRequestOptions: PagesFunction = async () => {

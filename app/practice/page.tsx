@@ -9,6 +9,7 @@ import BottomNav from '../../components/BottomNav'
 import { getLocalDate } from '../../lib/utils'
 import { useTTS } from '../../lib/useTTS'
 import { useSound } from '../../lib/useSound'
+import { useCloudSync } from '../../lib/useCloudSync'
 
 const HanziWriter = dynamic(() => import('../../components/HanziWriter'), { ssr: false })
 
@@ -53,6 +54,7 @@ export default function Practice() {
   const autoTimerRef = useRef<NodeJS.Timeout | null>(null)
   const { speak, speaking } = useTTS()
   const { play: playSound, init: initSound } = useSound()
+  const { schedulePush } = useCloudSync()
 
   const API = ''
 
@@ -133,6 +135,7 @@ export default function Practice() {
     localStorage.setItem(totalKey, String(parseInt(localStorage.getItem(totalKey) || '0') + 1))
     speak(questions[currentIndex].char, questions[currentIndex].audio_url)
     fetch(`${API}/api/progress`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId, characterId: questions[currentIndex].charId, status: 'learning', practiceCount: 1, correctCount: 1, isCorrect: true, isReview: false }) }).catch(() => {})
+    schedulePush()
     // 自动跳转下一题（2秒后）
     setTimeout(() => {
       if (currentIndex < questions.length - 1) { setCurrentIndex(i => i + 1); setWriteComplete(false) }
@@ -163,6 +166,7 @@ export default function Practice() {
     localStorage.setItem(correctKey, String(parseInt(localStorage.getItem(correctKey) || '0') + (isCorrect ? 1 : 0)))
     localStorage.setItem(totalKey, String(parseInt(localStorage.getItem(totalKey) || '0') + 1))
     fetch(`${API}/api/progress`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId, characterId: questions[currentIndex].charId, status: 'learning', practiceCount: 1, correctCount: isCorrect ? 1 : 0, isCorrect, isReview: false }) }).catch(() => {})
+    schedulePush()
     // 朗读正确答案
     speak(questions[currentIndex].char, questions[currentIndex].audio_url)
     // 自动跳转下一题（1.5秒后）

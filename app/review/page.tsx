@@ -9,6 +9,7 @@ import BottomNav from '../../components/BottomNav'
 import { getLocalDate } from '../../lib/utils'
 import { useTTS } from '../../lib/useTTS'
 import { useSound } from '../../lib/useSound'
+import { useCloudSync } from '../../lib/useCloudSync'
 
 const HanziWriter = dynamic(() => import('../../components/HanziWriter'), { ssr: false })
 
@@ -23,6 +24,7 @@ export default function Review() {
   const [finished, setFinished] = useState(false)
   const { speak, speaking } = useTTS()
   const { play: playSound } = useSound()
+  const { schedulePush } = useCloudSync()
   const writerRef = useRef<any>(null)
   const [userId] = useState(() => {
     if (typeof window !== 'undefined') {
@@ -86,6 +88,7 @@ export default function Review() {
     const todayReviewCnt = parseInt(localStorage.getItem(todayReviewKey) || '0') + 1
     localStorage.setItem(todayReviewKey, String(todayReviewCnt))
     fetch(`${API}/api/progress`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId, characterId: char.id, status: 'learning', practiceCount: 1, correctCount: correct ? 1 : 0, isCorrect: correct, isReview: true }) }).catch(() => {})
+    schedulePush()
     if (currentIndex < reviewChars.length - 1) { setCurrentIndex(i => i + 1); setShowAnswer(false) }
     else { setFinished(true); playSound('complete') }
   }

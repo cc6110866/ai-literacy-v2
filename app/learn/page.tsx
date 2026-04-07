@@ -9,6 +9,7 @@ import BottomNav from '../../components/BottomNav'
 import { getLocalDate, getYesterdayDate } from '../../lib/utils'
 import { useTTS } from '../../lib/useTTS'
 import { useSound } from '../../lib/useSound'
+import { useCloudSync } from '../../lib/useCloudSync'
 
 const HanziWriter = dynamic(() => import('../../components/HanziWriter'), { ssr: false })
 
@@ -35,6 +36,7 @@ export default function Learn() {
   const [reviewCompleted, setReviewCompleted] = useState(0)
   const { speak, speaking } = useTTS()
   const { play: playSound, init: initSound } = useSound()
+  const { schedulePush } = useCloudSync()
   const writerRef = useRef<any>(null)
 
   const [userId] = useState(() => {
@@ -188,6 +190,7 @@ export default function Learn() {
     }
 
     fetch(`${API}/api/progress`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId, characterId: charId, status: newCount >= 5 ? 'mastered' : 'learning', practiceCount: 1, correctCount: 1, isCorrect: true, isReview }) }).catch(() => {})
+    schedulePush()
   }, [userId])
 
   const nextChar = () => {

@@ -10,7 +10,14 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="zh-CN">
-      <body className="bg-warm-50 text-gray-900 min-h-screen overflow-x-hidden">{children}</body>
+      <body className="bg-warm-50 text-gray-900 min-h-screen overflow-x-hidden">
+        {/* @ts-expect-error Async Server Component */}
+        <SyncProviderWrapper>{children}</SyncProviderWrapper>
+      </body>
     </html>
   )
 }
+
+// Client wrapper for SyncProvider
+import dynamic from 'next/dynamic'
+const SyncProviderWrapper = dynamic(() => import('../components/SyncProvider'), { ssr: false })
