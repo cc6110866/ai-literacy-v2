@@ -3,11 +3,21 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
-import { Users, ChevronLeft, BarChart3, Settings, Target, Flame, Lightbulb, Info, Trophy } from 'lucide-react'
+import { Users, ChevronLeft, BarChart3, Settings, Target, Flame, Lightbulb, Info, Trophy, AlertCircle, Clock } from 'lucide-react'
 import BottomNav from '../../components/BottomNav'
 import { getLocalDate, getDateDaysAgo } from '../../lib/utils'
 
 interface WeekDay { date: string; newCount: number; reviewCount: number; total: number; correctRate: number }
+
+function formatTime(seconds: number): string {
+  if (seconds < 60) return `${Math.round(seconds)}秒`
+  const min = Math.floor(seconds / 60)
+  const sec = Math.round(seconds % 60)
+  if (min < 60) return sec > 0 ? `${min}分${sec}秒` : `${min}分钟`
+  const hour = Math.floor(min / 60)
+  const remainMin = min % 60
+  return `${hour}小时${remainMin}分`
+}
 
 export default function Parent() {
   const [stats, setStats] = useState({
@@ -16,6 +26,8 @@ export default function Parent() {
     weekData: [] as WeekDay[], avgDaily: 0, estimatedDays: 0,
     currentLevel: 1, levelProgress: 0,
   })
+  const [wrongChars, setWrongChars] = useState<{ character: string; pinyin: string; wrongCount: number }[]>([])
+  const [studyTime, setStudyTime] = useState({ today: 0, total: 0 })
   const [loading, setLoading] = useState(true)
   const [tab, setTab] = useState<'report' | 'settings'>('report')
   const [dailyTarget, setDailyTarget] = useState(5)
@@ -88,6 +100,43 @@ export default function Parent() {
         const estimatedDays = avgDaily > 0 ? Math.ceil(remaining / avgDaily) : 0
 
         setStats({ totalLearned, totalChars: 1862, mastered, streak, todayNew, todayReview, todayRate, weekData, avgDaily: Math.round(avgDaily * 10) / 10, estimatedDays, currentLevel, levelProgress })
+
+        // 加载错字排行（从今日和近 7 天的错误数据）
+        const wrongMap: Record<string, { character: string; pinyin: string; wrongCount: number }> = {}
+        for (let i = 0; i <= 6; i++) {
+          const dateStr = getDateDaysAgo(i)
+          const dayCorrect = parseInt(localStorage.getItem(`ai-literacy-today-correct-${dateStr}`) || '0')
+          const dayTotal = parseInt(localStorage.getItem(`ai-literacy-today-total-${dateStr}`) || '0')
+          // 从每日进度中找错字（这个是估算，更精确的需要 API 支持）
+        }
+        // 从 progress 中找未掌握的字（需要复习的 = 相对薄弱的）
+        const weakChars = learnedIds
+          .filter(id => {
+            const p = progress[String(id)]
+            return p && p.status !== 'mastered' && (p.count || 0) > 0
+          })
+          .slice(0, 10)
+        if (weakChars.length > 0) {
+          // 从字符缓存获取信息
+          const charCacheStr = localStorage.getItem('ai-literacy-char-cache') || '{}'
+          const charCache: Record<number, { character: string; pinyin: string }> = JSON.parse(charCacheStr)
+          weakChars.forEach(id => {
+            const cached = charCache[id]
+            if (cached) {
+              wrongMap[cached.character] = {
+                character: cached.character,
+                pinyin: cached.pinyin || '',
+                wrongCount: (wrongMap[cached.character]?.wrongCount || 0) + 1,
+              }
+            }
+          })
+        }
+        setWrongChars(Object.values(wrongMap).sort((a, b) => b.wrongCount - a.wrongCount).slice(0, 10))
+
+        // 学习时长估算（每次练习约 30 秒/字）
+        const totalTime = weekData.reduce((s, d) => s + d.total, 0)
+        const todayTime = weekData.length > 0 ? weekData[weekData.length - 1].total * 30 : 0
+        setStudyTime({ today: todayTime, total: totalTime * 30 })
       } catch {
         const learnedStr = localStorage.getItem('ai-literacy-learned') || '[]'
         setStats(prev => ({ ...prev, totalLearned: JSON.parse(learnedStr).length }))
@@ -225,6 +274,45 @@ export default function Parent() {
               <span>日均学习：<b className="text-orange-500">{stats.avgDaily}</b> 字</span>
               <span>预计完成：<b className="text-orange-500">{stats.estimatedDays > 0 ? `${stats.estimatedDays}天` : '—'}</b></span>
             </div>
+          </div>
+
+          {/* 需加强的字 */}
+          {wrongChars.length > 0 && (
+            <div className="bg-white rounded-2xl p-5 shadow-sm mb-4">
+              <h3 className="text-sm font-bold text-gray-800 mb-3 flex items-center gap-1.5">
+                <AlertCircle size={15} className="text-orange-500" /> 需要加强的字
+              </h3>
+              <p className="text-xs text-gray-400 mb-3">这些字还未掌握，建议重点复习</p>
+              <div className="flex flex-wrap gap-2">
+                {wrongChars.map((wc, i) => (
+                  <div key={i} className="bg-red-50 border border-red-100 rounded-2xl px-3 py-2 text-center min-w-[56px]">
+                    <div className="text-lg font-bold text-gray-800">{wc.character}</div>
+                    <div className="text-[10px] text-gray-400">{wc.pinyin}</div>
+                  </div>
+                ))}
+              </div>
+              <Link href="/review" className="block mt-3 w-full py-2.5 rounded-2xl bg-orange-50 text-orange-500 font-semibold text-sm text-center">
+                去复习这些字 →
+              </Link>
+            </div>
+          )}
+
+          {/* 学习时长 */}
+          <div className="bg-white rounded-2xl p-5 shadow-sm mb-4">
+            <h3 className="text-sm font-bold text-gray-800 mb-3 flex items-center gap-1.5">
+              <Clock size={15} className="text-indigo-500" /> 学习时长
+            </h3>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="bg-indigo-50 rounded-2xl p-4 text-center">
+                <div className="text-2xl font-bold text-indigo-500">{formatTime(studyTime.today)}</div>
+                <div className="text-[10px] text-gray-400 mt-1">今日学习</div>
+              </div>
+              <div className="bg-purple-50 rounded-2xl p-4 text-center">
+                <div className="text-2xl font-bold text-purple-500">{formatTime(studyTime.total)}</div>
+                <div className="text-[10px] text-gray-400 mt-1">本周累计</div>
+              </div>
+            </div>
+            <p className="text-[10px] text-gray-300 mt-2">* 学习时长按练习字数估算（约30秒/字）</p>
           </div>
 
           {/* 亲子建议 */}
