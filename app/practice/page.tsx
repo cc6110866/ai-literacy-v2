@@ -3,10 +3,13 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
-import { PencilLine, ChevronLeft, Star, RotateCcw, ArrowRight, Volume2 } from 'lucide-react'
+import dynamic from 'next/dynamic'
+import { PencilLine, ChevronLeft, Star, RotateCcw, ArrowRight, Volume2, PenTool, ListChecks } from 'lucide-react'
 import BottomNav from '../../components/BottomNav'
 import { getLocalDate } from '../../lib/utils'
 import { useTTS } from '../../lib/useTTS'
+
+const HanziWriter = dynamic(() => import('../../components/HanziWriter'), { ssr: false })
 
 interface CharData { id: number; character: string; pinyin: string; meaning: string; category: string; level: number; topic_group: string; audio_url?: string }
 
@@ -27,6 +30,8 @@ function shuffle<T>(arr: T[]): T[] {
   return a
 }
 
+type PracticeMode = 'select' | 'write'
+
 export default function Practice() {
   const [questions, setQuestions] = useState<Question[]>([])
   const [currentIndex, setCurrentIndex] = useState(0)
@@ -35,6 +40,9 @@ export default function Practice() {
   const [loading, setLoading] = useState(true)
   const [finished, setFinished] = useState(false)
   const [answered, setAnswered] = useState<boolean[]>([])
+  const [mode, setMode] = useState<PracticeMode>('select')
+  const [writeComplete, setWriteComplete] = useState(false)
+  const writerRef = useRef<any>(null)
   const [userId] = useState(() => {
     if (typeof window !== 'undefined') {
       return localStorage.getItem('ai-literacy-uid') || 'anonymous'
@@ -98,6 +106,44 @@ export default function Practice() {
     }
     loadQuestions()
   }, [])
+
+  // 手写模式切换时重置
+  const switchMode = useCallback((newMode: PracticeMode) => {
+    setMode(newMode)
+    setSelected(null)
+    setWriteComplete(false)
+    setScore(0)
+    setCurrentIndex(0)
+    setAnswered([])
+    setFinished(false)
+  }, [])
+
+  // 手写测验完成回调
+  const handleWriteComplete = useCallback(() => {
+    setWriteComplete(true)
+    setScore(s => s + 1)
+    setAnswered(prev => [...prev, true])
+    // 同步今日正确率
+    const today = getLocalDate()
+    const correctKey = `ai-literacy-today-correct-${today}`
+    const totalKey = `ai-literacy-today-total-${today}`
+    localStorage.setItem(correctKey, String(parseInt(localStorage.getItem(correctKey) || '0') + 1))
+    localStorage.setItem(totalKey, String(parseInt(localStorage.getItem(totalKey) || '0') + 1))
+    speak(questions[currentIndex].char, questions[currentIndex].audio_url)
+    fetch(`${API}/api/progress`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId, characterId: questions[currentIndex].charId, status: 'learning', practiceCount: 1, correctCount: 1, isCorrect: true, isReview: false }) }).catch(() => {})
+    // 自动跳转下一题（2秒后）
+    setTimeout(() => {
+      if (currentIndex < questions.length - 1) { setCurrentIndex(i => i + 1); setWriteComplete(false) }
+      else {
+        setFinished(true)
+        const newScore = score + 1
+        if (newScore === questions.length) {
+          const cnt = parseInt(localStorage.getItem('ai-literacy-perfect') || '0') + 1
+          localStorage.setItem('ai-literacy-perfect', String(cnt))
+        }
+      }
+    }, 2000)
+  }, [currentIndex, questions, score, userId, speak])
 
   const handleAnswer = useCallback((index: number) => {
     if (selected !== null) return
@@ -217,8 +263,16 @@ export default function Practice() {
       <div className="sticky top-0 z-40 bg-white/80 backdrop-blur-xl border-b border-gray-100 px-5 pt-4 pb-4 safe-area-top flex items-center gap-3">
         <Link href="/" className="text-gray-400"><ChevronLeft size={22} /></Link>
         <h1 className="font-bold text-gray-800">练习</h1>
-        <div className="ml-auto flex items-center gap-1 text-orange-500 font-bold text-sm">
-          <Star size={16} /> {score}
+        <div className="ml-auto flex items-center gap-2">
+          <button onClick={() => switchMode('select')} className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all ${mode === 'select' ? 'bg-orange-500 text-white' : 'bg-gray-100 text-gray-500'}`}>
+            <span className="flex items-center gap-1"><ListChecks size={14} /> 选择</span>
+          </button>
+          <button onClick={() => switchMode('write')} className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all ${mode === 'write' ? 'bg-orange-500 text-white' : 'bg-gray-100 text-gray-500'}`}>
+            <span className="flex items-center gap-1"><PenTool size={14} /> 手写</span>
+          </button>
+          <div className="flex items-center gap-1 text-orange-500 font-bold text-sm ml-1">
+            <Star size={16} /> {score}
+          </div>
         </div>
       </div>
 
@@ -229,62 +283,136 @@ export default function Practice() {
 
       <div className="px-5 pt-8">
         <div className="max-w-md mx-auto">
-          {/* 题目 */}
-          <div className="text-center mb-8">
-            {q.type === 'select_pinyin' ? (
-              <>
-                <div className="flex items-center justify-center gap-3">
-                  <div className="text-[64px] sm:text-[72px] md:text-[80px] font-bold text-gray-800 select-none leading-none">{q.prompt}</div>
-                  <button onClick={() => speak(q.char, q.audio_url)} className={`w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 transition-all ${speaking ? 'bg-orange-500 text-white scale-110' : 'bg-orange-50 text-orange-400 active:scale-95'}`}>
-                    <Volume2 size={18} />
-                  </button>
-                </div>
-                <p className="text-gray-500 text-lg mt-3">{typeLabel}</p>
-              </>
-            ) : (
-              <>
-                <div className="flex items-center justify-center gap-3">
-                  <div className="text-4xl font-bold text-orange-500">{q.prompt}</div>
-                  <button onClick={() => speak(q.char, q.audio_url)} className={`w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 transition-all ${speaking ? 'bg-orange-500 text-white scale-110' : 'bg-orange-50 text-orange-400 active:scale-95'}`}>
-                    <Volume2 size={18} />
-                  </button>
-                </div>
-                <p className="text-gray-500 mt-2">{typeLabel}</p>
-              </>
-            )}
-          </div>
+          {mode === 'select' ? (
+            <>
+              {/* 选择题模式 */}
+              <div className="text-center mb-8">
+                {q.type === 'select_pinyin' ? (
+                  <>
+                    <div className="flex items-center justify-center gap-3">
+                      <div className="text-[64px] sm:text-[72px] md:text-[80px] font-bold text-gray-800 select-none leading-none">{q.prompt}</div>
+                      <button onClick={() => speak(q.char, q.audio_url)} className={`w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 transition-all ${speaking ? 'bg-orange-500 text-white scale-110' : 'bg-orange-50 text-orange-400 active:scale-95'}`}>
+                        <Volume2 size={18} />
+                      </button>
+                    </div>
+                    <p className="text-gray-500 text-lg mt-3">{typeLabel}</p>
+                  </>
+                ) : (
+                  <>
+                    <div className="flex items-center justify-center gap-3">
+                      <div className="text-4xl font-bold text-orange-500">{q.prompt}</div>
+                      <button onClick={() => speak(q.char, q.audio_url)} className={`w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 transition-all ${speaking ? 'bg-orange-500 text-white scale-110' : 'bg-orange-50 text-orange-400 active:scale-95'}`}>
+                        <Volume2 size={18} />
+                      </button>
+                    </div>
+                    <p className="text-gray-500 mt-2">{typeLabel}</p>
+                  </>
+                )}
+              </div>
 
-          {/* 选项 */}
-          <div className="flex flex-col gap-3">
-            {q.options.map((option, index) => {
-              const isCorrect = index === q.correctIndex
-              const isSelected = selected === index
-              let cls = 'bg-white text-gray-800 border-transparent shadow-sm'
-              if (selected !== null) {
-                if (isCorrect) cls = 'bg-green-50 text-green-700 border-green-200'
-                else if (isSelected && !isCorrect) cls = 'bg-red-50 text-red-600 border-red-200'
-                else cls = 'bg-gray-50 text-gray-300 border-transparent'
-              }
-              return (
-                <button key={index} onClick={() => handleAnswer(index)} disabled={selected !== null}
-                  className={`w-full py-4 px-5 rounded-2xl text-left text-lg font-semibold border-2 transition-all ${cls} ${selected === null ? 'hover:shadow-md active:scale-[0.98]' : ''}`}>
-                  <span className={`inline-flex items-center justify-center w-8 h-8 rounded-full text-xs font-bold mr-3 ${
-                    selected !== null && isCorrect ? 'bg-green-200 text-green-700'
-                    : selected === index && !isCorrect ? 'bg-red-200 text-red-700'
-                    : 'bg-orange-100 text-orange-600'
-                  }`}>{['A', 'B', 'C', 'D'][index]}</span>
-                  {option}
+              {/* 选项 */}
+              <div className="flex flex-col gap-3">
+                {q.options.map((option, index) => {
+                  const isCorrect = index === q.correctIndex
+                  const isSelected = selected === index
+                  let cls = 'bg-white text-gray-800 border-transparent shadow-sm'
+                  if (selected !== null) {
+                    if (isCorrect) cls = 'bg-green-50 text-green-700 border-green-200'
+                    else if (isSelected && !isCorrect) cls = 'bg-red-50 text-red-600 border-red-200'
+                    else cls = 'bg-gray-50 text-gray-300 border-transparent'
+                  }
+                  return (
+                    <button key={index} onClick={() => handleAnswer(index)} disabled={selected !== null}
+                      className={`w-full py-4 px-5 rounded-2xl text-left text-lg font-semibold border-2 transition-all ${cls} ${selected === null ? 'hover:shadow-md active:scale-[0.98]' : ''}`}>
+                      <span className={`inline-flex items-center justify-center w-8 h-8 rounded-full text-xs font-bold mr-3 ${
+                        selected !== null && isCorrect ? 'bg-green-200 text-green-700'
+                        : selected === index && !isCorrect ? 'bg-red-200 text-red-700'
+                        : 'bg-orange-100 text-orange-600'
+                      }`}>{['A', 'B', 'C', 'D'][index]}</span>
+                      {option}
+                    </button>
+                  )
+                })}
+              </div>
+
+              {selected !== null && (
+                <button onClick={nextQuestion}
+                  className="w-full mt-6 py-4 rounded-2xl bg-orange-500 text-white font-bold text-lg shadow-lg shadow-orange-500/30 flex items-center justify-center gap-2">
+                  <span>{currentIndex < questions.length - 1 ? '下一题 →' : '查看结果 →'}</span>
+                  <span className="text-xs opacity-60 ml-1">自动跳转中...</span>
                 </button>
-              )
-            })}
-          </div>
+              )}
+            </>
+          ) : (
+            <>
+              {/* 手写模式 */}
+              <div className="text-center mb-6">
+                <p className="text-gray-500 text-base mb-1">
+                  第 {currentIndex + 1}/{questions.length} 题
+                </p>
+                <p className="text-gray-700 text-lg font-semibold">请写出这个字</p>
+              </div>
 
-          {selected !== null && (
-            <button onClick={nextQuestion}
-              className="w-full mt-6 py-4 rounded-2xl bg-orange-500 text-white font-bold text-lg shadow-lg shadow-orange-500/30 flex items-center justify-center gap-2">
-              <span>{currentIndex < questions.length - 1 ? '下一题 →' : '查看结果 →'}</span>
-              <span className="text-xs opacity-60 ml-1">自动跳转中...</span>
-            </button>
+              <div className="flex flex-col items-center mb-6">
+                <div className="bg-white rounded-3xl shadow-lg p-6 relative">
+                  <HanziWriter
+                    key={`write-${currentIndex}`}
+                    character={q.char}
+                    width={200}
+                    height={200}
+                    padding={15}
+                    strokeColor="#374151"
+                    outlineColor="#E5E7EB"
+                    radicalColor="#F59E0B"
+                    showOutline={true}
+                    showCharacter={false}
+                    autoAnimate={false}
+                    ref={writerRef}
+                  />
+                  {writeComplete && (
+                    <div className="absolute inset-0 flex items-center justify-center bg-green-500/10 rounded-3xl">
+                      <div className="bg-green-500 text-white text-sm font-bold px-4 py-2 rounded-full shadow-lg animate-bounce">
+                        ✅ 写对了！
+                      </div>
+                    </div>
+                  )}
+                </div>
+                <div className="flex items-center gap-4 mt-4">
+                  <button
+                    onClick={() => speak(q.char, q.audio_url)}
+                    className={`w-10 h-10 rounded-full flex items-center justify-center transition-all ${speaking ? 'bg-orange-500 text-white scale-110' : 'bg-orange-50 text-orange-400 active:scale-95'}`}
+                  >
+                    <Volume2 size={20} />
+                  </button>
+                  <button
+                    onClick={() => writerRef.current?.animate()}
+                    className="w-10 h-10 rounded-full bg-gray-50 text-gray-400 flex items-center justify-center active:scale-95 transition-all hover:bg-gray-100"
+                    title="看笔顺提示"
+                  >
+                    <PencilLine size={18} />
+                  </button>
+                </div>
+              </div>
+
+              {!writeComplete && (
+                <button
+                  onClick={() => {
+                    writerRef.current?.quiz({
+                      onComplete: handleWriteComplete,
+                    })
+                  }}
+                  className="w-full py-4 rounded-2xl bg-gradient-to-r from-orange-500 to-amber-500 text-white font-bold text-lg shadow-lg shadow-orange-500/30 flex items-center justify-center gap-2 active:scale-[0.98] transition-transform"
+                >
+                  <PenTool size={20} /> 开始手写
+                </button>
+              )}
+
+              {writeComplete && (
+                <p className="text-center text-gray-400 text-sm mt-4">
+                  {currentIndex < questions.length - 1 ? '自动跳转下一题...' : '即将查看结果...'}
+                </p>
+              )}
+            </>
           )}
         </div>
       </div>
