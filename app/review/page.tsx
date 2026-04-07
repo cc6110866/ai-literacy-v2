@@ -1,12 +1,16 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
-import { BookOpen, ChevronLeft, Eye, XCircle, CheckCircle2, Sparkles, Volume2 } from 'lucide-react'
+import dynamic from 'next/dynamic'
+import { BookOpen, ChevronLeft, Eye, XCircle, CheckCircle2, Sparkles, Volume2, Play } from 'lucide-react'
 import BottomNav from '../../components/BottomNav'
 import { getLocalDate } from '../../lib/utils'
 import { useTTS } from '../../lib/useTTS'
+import { useSound } from '../../lib/useSound'
+
+const HanziWriter = dynamic(() => import('../../components/HanziWriter'), { ssr: false })
 
 interface CharData { id: number; character: string; pinyin: string; meaning: string; category: string; level: number; topic_group: string; audio_url?: string }
 
@@ -18,6 +22,8 @@ export default function Review() {
   const [loading, setLoading] = useState(true)
   const [finished, setFinished] = useState(false)
   const { speak, speaking } = useTTS()
+  const { play: playSound } = useSound()
+  const writerRef = useRef<any>(null)
   const [userId] = useState(() => {
     if (typeof window !== 'undefined') {
       return localStorage.getItem('ai-literacy-uid') || 'anonymous'
@@ -60,6 +66,7 @@ export default function Review() {
   const handleResult = (correct: boolean) => {
     const char = reviewChars[currentIndex]
     if (!char) return
+    playSound(correct ? 'correct' : 'wrong')
     setResults(prev => [...prev, { charId: char.id, correct }])
     const progressStr = localStorage.getItem('ai-literacy-progress') || '{}'
     const progress: Record<number, { nextReview: number; status: string; count: number }> = JSON.parse(progressStr)
@@ -69,20 +76,18 @@ export default function Review() {
       const intervalIndex = Math.min(count, intervals.length - 1)
       progress[char.id] = { nextReview: Date.now() + intervals[intervalIndex], status: count >= 4 ? 'mastered' : 'learning', count: count + 1 }
     } else {
-      // 答错了：保留 count 但回到最短间隔重新复习
       progress[char.id] = { nextReview: Date.now() + intervals[0], status: 'learning', count: Math.max(0, count - 1) }
     }
     localStorage.setItem('ai-literacy-progress', JSON.stringify(progress))
     const reviewCnt = parseInt(localStorage.getItem('ai-literacy-review-count') || '0') + 1
     localStorage.setItem('ai-literacy-review-count', String(reviewCnt))
-    // 同步今日复习计数
     const today = getLocalDate()
     const todayReviewKey = `ai-literacy-today-review-count-${today}`
     const todayReviewCnt = parseInt(localStorage.getItem(todayReviewKey) || '0') + 1
     localStorage.setItem(todayReviewKey, String(todayReviewCnt))
     fetch(`${API}/api/progress`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId, characterId: char.id, status: 'learning', practiceCount: 1, correctCount: correct ? 1 : 0, isCorrect: correct, isReview: true }) }).catch(() => {})
     if (currentIndex < reviewChars.length - 1) { setCurrentIndex(i => i + 1); setShowAnswer(false) }
-    else { setFinished(true) }
+    else { setFinished(true); playSound('complete') }
   }
 
   if (loading) {
@@ -172,24 +177,48 @@ export default function Review() {
       <div className="px-5 pt-6">
         <div className="max-w-md mx-auto">
           <div className="bg-white rounded-3xl overflow-hidden shadow-lg">
-            {/* 汉字区 */}
-            <div className="px-8 py-12 text-center bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
-              <div className="flex items-center justify-center gap-3">
-                <div className="text-[80px] sm:text-[100px] md:text-[120px] font-bold text-gray-800 leading-none select-none">{currentChar.character}</div>
-                <button
-                  onClick={() => speak(currentChar.character, currentChar.audio_url)}
-                  className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 transition-all ${
-                    speaking ? 'bg-indigo-500 text-white scale-110' : 'bg-white/80 text-indigo-400 active:scale-95'
-                  }`}
-                >
-                  <Volume2 size={20} />
-                </button>
+            {/* 汉字区 - HanziWriter 笔顺 */}
+            <div className="px-8 py-8 text-center bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
+              <div className="flex flex-col items-center">
+                <HanziWriter
+                  key={`review-${currentChar.id}`}
+                  character={currentChar.character}
+                  width={160}
+                  height={160}
+                  padding={10}
+                  strokeColor="#374151"
+                  outlineColor="#DDD"
+                  radicalColor="#F59E0B"
+                  showOutline={true}
+                  showCharacter={false}
+                  autoAnimate={true}
+                  animateSpeed={1}
+                  delayBetweenStrokes={150}
+                  ref={writerRef}
+                />
+                <div className="flex items-center gap-3 mt-4">
+                  <button
+                    onClick={() => speak(currentChar.character, currentChar.audio_url)}
+                    className={`w-10 h-10 rounded-full flex items-center justify-center transition-all ${
+                      speaking ? 'bg-indigo-500 text-white scale-110' : 'bg-white/80 text-indigo-400 active:scale-95'
+                    }`}
+                  >
+                    <Volume2 size={20} />
+                  </button>
+                  <button
+                    onClick={() => writerRef.current?.animate()}
+                    className="w-10 h-10 rounded-full bg-white/80 text-gray-400 flex items-center justify-center active:scale-95 transition-all hover:bg-white"
+                    title="重播笔顺"
+                  >
+                    <Play size={16} />
+                  </button>
+                </div>
               </div>
-              {!showAnswer && <p className="text-gray-400 text-lg mt-4">还记得这个字吗？</p>}
+              {!showAnswer && <p className="text-gray-400 text-lg mt-3">还记得这个字吗？</p>}
               {showAnswer && (
-                <div className="mt-4">
+                <div className="mt-3">
                   <div className="text-2xl font-medium text-orange-500">{currentChar.pinyin}</div>
-                  <p className="text-gray-500 mt-2">{currentChar.meaning}</p>
+                  <p className="text-gray-500 mt-1">{currentChar.meaning}</p>
                   <p className="text-gray-300 text-sm mt-1">{currentChar.category} · L{currentChar.level}</p>
                 </div>
               )}
@@ -205,11 +234,11 @@ export default function Review() {
               ) : (
                 <div className="flex gap-3">
                   <button onClick={() => handleResult(false)}
-                    className="flex-1 py-4 rounded-2xl font-bold text-lg bg-red-50 text-red-500 border-2 border-red-200 flex items-center justify-center gap-2">
+                    className="flex-1 py-4 rounded-2xl font-bold text-lg bg-red-50 text-red-500 border-2 border-red-200 flex items-center justify-center gap-2 active:scale-95 transition-transform">
                     <XCircle size={20} /> 忘了
                   </button>
                   <button onClick={() => handleResult(true)}
-                    className="flex-1 py-4 rounded-2xl font-bold text-lg bg-green-500 text-white shadow-lg shadow-green-500/30 flex items-center justify-center gap-2">
+                    className="flex-1 py-4 rounded-2xl font-bold text-lg bg-green-500 text-white shadow-lg shadow-green-500/30 flex items-center justify-center gap-2 active:scale-95 transition-transform">
                     <CheckCircle2 size={20} /> 记得
                   </button>
                 </div>

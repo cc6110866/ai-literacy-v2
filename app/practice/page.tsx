@@ -8,6 +8,7 @@ import { PencilLine, ChevronLeft, Star, RotateCcw, ArrowRight, Volume2, PenTool,
 import BottomNav from '../../components/BottomNav'
 import { getLocalDate } from '../../lib/utils'
 import { useTTS } from '../../lib/useTTS'
+import { useSound } from '../../lib/useSound'
 
 const HanziWriter = dynamic(() => import('../../components/HanziWriter'), { ssr: false })
 
@@ -51,6 +52,7 @@ export default function Practice() {
   })
   const autoTimerRef = useRef<NodeJS.Timeout | null>(null)
   const { speak, speaking } = useTTS()
+  const { play: playSound, init: initSound } = useSound()
 
   const API = ''
 
@@ -136,6 +138,7 @@ export default function Practice() {
       if (currentIndex < questions.length - 1) { setCurrentIndex(i => i + 1); setWriteComplete(false) }
       else {
         setFinished(true)
+        playSound('complete')
         const newScore = score + 1
         if (newScore === questions.length) {
           const cnt = parseInt(localStorage.getItem('ai-literacy-perfect') || '0') + 1
@@ -150,7 +153,8 @@ export default function Practice() {
     if (autoTimerRef.current) { clearTimeout(autoTimerRef.current); autoTimerRef.current = null }
     setSelected(index)
     const isCorrect = index === questions[currentIndex].correctIndex
-    if (isCorrect) setScore(s => s + 1)
+    if (isCorrect) { setScore(s => s + 1); playSound('correct') }
+    else { playSound('wrong') }
     setAnswered(prev => [...prev, isCorrect])
     // 同步今日正确率
     const today = getLocalDate()
@@ -170,6 +174,7 @@ export default function Practice() {
     if (currentIndex < questions.length - 1) { setCurrentIndex(i => i + 1); setSelected(null) }
     else {
       setFinished(true)
+      playSound(score === questions.length ? 'achievement' : 'complete')
       if (score === questions.length) {
         const cnt = parseInt(localStorage.getItem('ai-literacy-perfect') || '0') + 1
         localStorage.setItem('ai-literacy-perfect', String(cnt))

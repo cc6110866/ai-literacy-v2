@@ -8,6 +8,7 @@ import { BookOpen, PencilLine, ChevronLeft, ChevronRight, Eye, CheckCircle2, Lig
 import BottomNav from '../../components/BottomNav'
 import { getLocalDate, getYesterdayDate } from '../../lib/utils'
 import { useTTS } from '../../lib/useTTS'
+import { useSound } from '../../lib/useSound'
 
 const HanziWriter = dynamic(() => import('../../components/HanziWriter'), { ssr: false })
 
@@ -33,6 +34,7 @@ export default function Learn() {
   const [currentLevel, setCurrentLevel] = useState(1)
   const [reviewCompleted, setReviewCompleted] = useState(0)
   const { speak, speaking } = useTTS()
+  const { play: playSound, init: initSound } = useSound()
   const writerRef = useRef<any>(null)
 
   const [userId] = useState(() => {
@@ -189,6 +191,7 @@ export default function Learn() {
   }, [userId])
 
   const nextChar = () => {
+    playSound('click')
     const chars = phase === 'review' ? reviewChars : newChars
     if (!chars[currentIndex]) return
     const charId = chars[currentIndex].id
@@ -202,7 +205,7 @@ export default function Learn() {
       setTimeout(() => { setCurrentIndex(i => i + 1); setShowStory(false); setIsAnimating(false) }, 300)
     } else {
       if (phase === 'review') { setReviewCompleted(reviewChars.length); setPhase('learn'); setCurrentIndex(0); setShowStory(false) }
-      else { setPhase('done') }
+      else { setPhase('done'); playSound('complete') }
     }
   }
   const prevChar = () => {
