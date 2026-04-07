@@ -11,6 +11,7 @@ import { useTTS } from '../../lib/useTTS'
 import { useSound } from '../../lib/useSound'
 import { useCloudSync } from '../../lib/useCloudSync'
 import { getNextReview, isMastered } from '../../lib/spaced-repetition'
+import { loadCharactersWithCache, getCachedCharsByFilter } from '../../lib/charCache'
 import { useAppContext } from '../../components/AppProvider'
 
 const HanziWriter = dynamic(() => import('../../components/HanziWriter'), { ssr: false })
@@ -58,12 +59,9 @@ export default function Learn() {
           if (p.status !== 'mastered' && p.nextReview && p.nextReview <= now) dueIds.push(parseInt(idStr))
         }
         if (dueIds.length > 0) {
-          const allRes = await fetch(`${API}/api/characters?mode=all&limit=200`)
-          const allData: any = await allRes.json()
-          if (allData.success) {
-            const reviewSet = allData.data.filter((c: CharData) => dueIds.includes(c.id))
-            if (reviewSet.length > 0) { setReviewChars(reviewSet.slice(0, 10)); setPhase('review'); setLoading(false); return }
-          }
+          const allChars = await loadCharactersWithCache({ apiBaseUrl: API })
+          const reviewSet = allChars.filter((c: CharData) => dueIds.includes(c.id))
+          if (reviewSet.length > 0) { setReviewChars(reviewSet.slice(0, 10)); setPhase('review'); setLoading(false); return }
         }
         await loadNewChars(learnedIds)
       } catch { await loadNewChars([]) } finally { setLoading(false) }
@@ -91,30 +89,26 @@ export default function Learn() {
         } catch {}
       }
       try {
+        // 从 IndexedDB 缓存加载字库（首次会从 API 拉取并缓存）
+        const allChars = await loadCharactersWithCache({ apiBaseUrl: API })
         let targetLevel = forceLevel
         if (targetLevel === 0) {
           const total = learnedIds.length
           if (total >= 1738) targetLevel = 4; else if (total >= 960) targetLevel = 3; else if (total >= 169) targetLevel = 2; else targetLevel = 1
         }
-        const res = await fetch(`${API}/api/characters?mode=level&level=${targetLevel}&limit=50`)
-        const data: any = await res.json()
-        if (data.success && data.data) {
-          const unlearned = data.data.filter((c: CharData) => !learnedIds.includes(c.id))
-          if (unlearned.length > 0) {
-            const todayChars = unlearned.slice(0, dailyTarget)
-            setNewChars(todayChars); setCurrentTopic(todayChars[0]?.topic_group || ''); setCurrentLevel(todayChars[0]?.level || targetLevel)
-            localStorage.setItem(`ai-literacy-today-${today}`, JSON.stringify({ chars: todayChars, topic: todayChars[0]?.topic_group || '', level: todayChars[0]?.level || targetLevel, dailyTarget }))
-          } else if (targetLevel < 4) {
-            const nextRes = await fetch(`${API}/api/characters?mode=level&level=${targetLevel + 1}&limit=50`)
-            const nextData: any = await nextRes.json()
-            if (nextData.success && nextData.data) {
-              const nextUnlearned = nextData.data.filter((c: CharData) => !learnedIds.includes(c.id))
-              if (nextUnlearned.length > 0) {
-                const todayChars = nextUnlearned.slice(0, dailyTarget)
-                setNewChars(todayChars); setCurrentTopic(todayChars[0]?.topic_group || ''); setCurrentLevel(targetLevel + 1)
-                localStorage.setItem(`ai-literacy-today-${today}`, JSON.stringify({ chars: todayChars, topic: todayChars[0]?.topic_group || '', level: targetLevel + 1, dailyTarget }))
-              }
-            }
+        const levelChars = allChars.filter((c: CharData) => c.level === targetLevel)
+        const unlearned = levelChars.filter((c: CharData) => !learnedIds.includes(c.id))
+        if (unlearned.length > 0) {
+          const todayChars = unlearned.slice(0, dailyTarget)
+          setNewChars(todayChars); setCurrentTopic(todayChars[0]?.topic_group || ''); setCurrentLevel(todayChars[0]?.level || targetLevel)
+          localStorage.setItem(`ai-literacy-today-${today}`, JSON.stringify({ chars: todayChars, topic: todayChars[0]?.topic_group || '', level: todayChars[0]?.level || targetLevel, dailyTarget }))
+        } else if (targetLevel < 4) {
+          const nextLevelChars = allChars.filter((c: CharData) => c.level === targetLevel + 1)
+          const nextUnlearned = nextLevelChars.filter((c: CharData) => !learnedIds.includes(c.id))
+          if (nextUnlearned.length > 0) {
+            const todayChars = nextUnlearned.slice(0, dailyTarget)
+            setNewChars(todayChars); setCurrentTopic(todayChars[0]?.topic_group || ''); setCurrentLevel(targetLevel + 1)
+            localStorage.setItem(`ai-literacy-today-${today}`, JSON.stringify({ chars: todayChars, topic: todayChars[0]?.topic_group || '', level: targetLevel + 1, dailyTarget }))
           }
         }
       } catch {}

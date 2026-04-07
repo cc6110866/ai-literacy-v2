@@ -10,6 +10,7 @@ import { getLocalDate } from '../../lib/utils'
 import { useTTS } from '../../lib/useTTS'
 import { useSound } from '../../lib/useSound'
 import { useCloudSync } from '../../lib/useCloudSync'
+import { loadCharactersWithCache } from '../../lib/charCache'
 import { useAppContext } from '../../components/AppProvider'
 
 const HanziWriter = dynamic(() => import('../../components/HanziWriter'), { ssr: false })
@@ -63,11 +64,10 @@ export default function Practice() {
         const charIdsParam = urlParams.get('charIds')
         if (charIdsParam) {
           const targetIds = charIdsParam.split(',').map(Number).filter(Boolean)
-          const res = await fetch(`${API}/api/characters?mode=all&limit=200`)
-          const data: any = await res.json()
-          if (data.success) {
-            const targetChars = data.data.filter((c: CharData) => targetIds.includes(c.id))
-            const extraChars = data.data.filter((c: CharData) => !targetIds.includes(c.id) && learnedIds.includes(c.id))
+          const allData = await loadCharactersWithCache({ apiBaseUrl: API })
+          {
+            const targetChars = allData.filter((c: CharData) => targetIds.includes(c.id))
+            const extraChars = allData.filter((c: CharData) => !targetIds.includes(c.id) && learnedIds.includes(c.id))
             const allChars = [...targetChars, ...extraChars]
             if (allChars.length >= 4) { buildQuestions(targetChars.length >= 4 ? targetChars : allChars); return }
           }
@@ -77,10 +77,9 @@ export default function Practice() {
           setQuestions([])
           return
         }
-        const res = await fetch(`${API}/api/characters?mode=all&limit=200`)
-        const data: any = await res.json()
-        if (data.success) {
-          const learned: CharData[] = data.data.filter((c: CharData) => learnedIds.includes(c.id))
+        const allData = await loadCharactersWithCache({ apiBaseUrl: API })
+        {
+          const learned: CharData[] = allData.filter((c: CharData) => learnedIds.includes(c.id))
           if (learned.length >= 4) buildQuestions(shuffle<CharData>(learned).slice(0, 20))
         }
       } catch {

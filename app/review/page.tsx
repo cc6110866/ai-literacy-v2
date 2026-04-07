@@ -12,6 +12,7 @@ import { useSound } from '../../lib/useSound'
 import { useCloudSync } from '../../lib/useCloudSync'
 import { useAppContext } from '../../components/AppProvider'
 import { getNextReview, isMastered } from '../../lib/spaced-repetition'
+import { loadCharactersWithCache } from '../../lib/charCache'
 
 const HanziWriter = dynamic(() => import('../../components/HanziWriter'), { ssr: false })
 
@@ -55,10 +56,9 @@ export default function Review() {
         if (p.status !== 'mastered' && p.nextReview && p.nextReview <= now) dueIds.push(parseInt(idStr))
       }
       if (dueIds.length > 0) {
-        const res = await fetch(`${API}/api/characters?mode=all&limit=200`)
-        const data: any = await res.json()
-        if (data.success) {
-          const due = data.data.filter((c: CharData) => dueIds.includes(c.id))
+        const allData = await loadCharactersWithCache({ apiBaseUrl: API })
+        {
+          const due = allData.filter((c: CharData) => dueIds.includes(c.id))
           setReviewChars(due.slice(0, 20))
         }
       } else {

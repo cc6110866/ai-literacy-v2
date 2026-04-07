@@ -14,7 +14,7 @@ export const metadata: Metadata = {
     type: 'website',
     locale: 'zh_CN',
     images: [{
-      url: '/images/og-image.png',
+      url: '/images/og-image.webp',
       width: 512,
       height: 512,
       alt: 'AI识字伴侣',
@@ -24,7 +24,7 @@ export const metadata: Metadata = {
     card: 'summary',
     title: 'AI识字伴侣 — 让孩子爱上汉字',
     description: '1862个汉字，四级分级，AI驱动的儿童识字应用',
-    images: ['/images/og-image.png'],
+    images: ['/images/og-image.webp', '/images/og-image.png'],
   },
   other: {
     'mobile-web-app-capable': 'yes',
