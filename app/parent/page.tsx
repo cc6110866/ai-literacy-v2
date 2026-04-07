@@ -161,7 +161,7 @@ export default function Parent() {
           <Image src="/images/icon-parent.webp" alt="" width={80} height={80} className="mb-4 opacity-60" />
           <p className="text-gray-400">加载中...</p>
         </div>
-        <BottomNav active="parent" />
+        <BottomNav active="home" />
       </div>
     )
   }
@@ -433,7 +433,7 @@ export default function Parent() {
         </div>
       )}
 
-      <BottomNav active="parent" />
+      <BottomNav active="home" />
     </div>
   )
 }

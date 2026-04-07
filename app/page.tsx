@@ -6,8 +6,10 @@ import Image from 'next/image'
 import { BookOpen, PencilLine, Trophy, Settings, Flame, Target, Sparkles, RotateCcw } from 'lucide-react'
 import { getLocalDate, getDateDaysAgo } from '../lib/utils'
 import BottomNav from '../components/BottomNav'
+import { useAppContext } from '../components/AppProvider'
 
 export default function Home() {
+  const { stats: ctxStats } = useAppContext()
   const [stats, setStats] = useState({
     totalLearned: 0, totalChars: 1862, todayLearned: 0, todayTarget: 5,
     streak: 0, mastered: 0, dueReview: 0, currentLevel: 1, correctRate: 0,
@@ -16,71 +18,43 @@ export default function Home() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    async function load() {
-      try {
-        let uid = localStorage.getItem('ai-literacy-uid')
-        if (!uid) {
-          uid = 'user_' + Math.random().toString(36).slice(2, 10)
-          localStorage.setItem('ai-literacy-uid', uid)
-        }
+    try {
+      const learnedIds = ctxStats.learnedIds
+      const progress = ctxStats.progress
+      const now = Date.now()
 
-        // 主数据源：localStorage（与识字页一致）
-        const learnedStr = localStorage.getItem('ai-literacy-learned') || '[]'
-        const learnedIds: number[] = JSON.parse(learnedStr)
-        const progressStr = localStorage.getItem('ai-literacy-progress') || '{}'
-        const progress: Record<string, { nextReview: number; status: string; count: number }> = JSON.parse(progressStr)
-        const now = Date.now()
+      const totalLearned = learnedIds.length
+      const mastered = learnedIds.filter(id => progress[id]?.status === 'mastered' || (progress[id]?.count || 0) >= 5).length
+      const dueReview = learnedIds.filter(id => {
+        const p = progress[id]
+        return p && p.status !== 'mastered' && p.nextReview && p.nextReview <= now
+      }).length
 
-        const totalLearned = learnedIds.length
-        const mastered = learnedIds.filter(id => progress[id]?.status === 'mastered' || (progress[id]?.count || 0) >= 5).length
-        const dueReview = learnedIds.filter(id => {
-          const p = progress[id]
-          return p && p.status !== 'mastered' && p.nextReview && p.nextReview <= now
-        }).length
+      const weekHistory: { date: string; count: number }[] = []
+      for (let i = 6; i >= 0; i--) {
+        const dateStr = getDateDaysAgo(6 - i)
+        const dayKey = `ai-literacy-today-learned-${dateStr}`
+        const dayIds: number[] = JSON.parse(localStorage.getItem(dayKey) || '[]')
+        const dayReview = parseInt(localStorage.getItem(`ai-literacy-today-review-count-${dateStr}`) || '0')
+        weekHistory.push({ date: dateStr, count: dayIds.length + dayReview })
+      }
 
-        // 连续学习天数
-        const streakStr = localStorage.getItem('ai-literacy-streak') || '0'
-        const streak = parseInt(streakStr) || 0
+      let lv = 1
+      if (totalLearned >= 1738) lv = 4
+      else if (totalLearned >= 960) lv = 3
+      else if (totalLearned >= 169) lv = 2
 
-        // 今日已学
-        const today = getLocalDate()
-        const todayKey = `ai-literacy-today-learned-${today}`
-        const todayLearnedStr = localStorage.getItem(todayKey) || '[]'
-        const todayLearnedIds: number[] = JSON.parse(todayLearnedStr)
-        const todayLearned = todayLearnedIds.length
-
-        // 本周历史（从 localStorage 每日记录计算）
-        const weekHistory: { date: string; count: number }[] = []
-        for (let i = 6; i >= 0; i--) {
-          const dateStr = getDateDaysAgo(6 - i)
-          const dayKey = `ai-literacy-today-learned-${dateStr}`
-          const dayIds: number[] = JSON.parse(localStorage.getItem(dayKey) || '[]')
-          const dayReview = parseInt(localStorage.getItem(`ai-literacy-today-review-count-${dateStr}`) || '0')
-          weekHistory.push({ date: dateStr, count: dayIds.length + dayReview })
-        }
-
-        // 今日正确率
-        const todayCorrectStr = localStorage.getItem(`ai-literacy-today-correct-${today}`) || '0'
-        const todayTotalStr = localStorage.getItem(`ai-literacy-today-total-${today}`) || '0'
-        const correctRate = parseInt(todayTotalStr) > 0 ? parseInt(todayCorrectStr) / parseInt(todayTotalStr) : 0
-
-        let lv = 1
-        if (totalLearned >= 1738) lv = 4
-        else if (totalLearned >= 960) lv = 3
-        else if (totalLearned >= 169) lv = 2
-
-        setStats({
-          totalLearned, totalChars: 1862,
-          todayLearned,
-          todayTarget: parseInt(localStorage.getItem('ai-literacy-daily-target') || '5'),
-          streak, mastered, dueReview,
-          currentLevel: lv, correctRate,
-          weekHistory,
+      setStats({
+        totalLearned, totalChars: 1862,
+        todayLearned: ctxStats.today.newCount,
+        todayTarget: ctxStats.dailyTarget,
+        streak: ctxStats.streak, mastered, dueReview,
+        currentLevel: lv,
+        correctRate: ctxStats.today.totalCount > 0 ? ctxStats.today.correctCount / ctxStats.today.totalCount : 0,
+        weekHistory,
         })
-      } catch {} finally { setLoading(false) }
-    }
-    load()
-  }, [])
+    } catch {} finally { setLoading(false) }
+  }, [ctxStats])
 
   const progressPct = Math.round((stats.totalLearned / stats.totalChars) * 100)
   const lvName: Record<number, string> = { 1: '启蒙', 2: '基础', 3: '进阶', 4: '衔接' }

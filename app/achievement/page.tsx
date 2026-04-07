@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
-import { Trophy, ChevronLeft, Flame, Star, BookOpen, CheckCircle2 } from 'lucide-react'
+import { Trophy, ChevronLeft, Flame, Star, BookOpen, CheckCircle2, Share2 } from 'lucide-react'
 import BottomNav from '../../components/BottomNav'
 
 interface Achievement {
@@ -71,7 +71,7 @@ export default function AchievementPage() {
           <Image src="/images/icon-achievement.webp" alt="" width={80} height={80} className="mb-4 opacity-60" />
           <p className="text-gray-400">加载成就中...</p>
         </div>
-        <BottomNav active="parent" />
+        <BottomNav active="achievement" />
       </div>
     )
   }
@@ -79,6 +79,38 @@ export default function AchievementPage() {
   const unlockedCount = unlocked.size
   const totalCount = ACHIEVEMENTS.length
   const completionPct = Math.round((unlockedCount / totalCount) * 100)
+
+  // 分享成就
+  const handleShare = async () => {
+    const shareText = `🌟 我在「AI识字伴侣」已学会 ${stats.totalLearned} 个汉字！\n📚 连续学习 ${stats.streak} 天\n🏆 解锁 ${unlockedCount}/${totalCount} 个成就\n\n来一起学汉字吧！`
+
+    // 尝试使用 Web Share API
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: 'AI识字伴侣 - 学习成就',
+          text: shareText,
+          url: window.location.origin,
+        })
+        return
+      } catch {}
+    }
+
+    // Fallback: 复制到剪贴板
+    try {
+      await navigator.clipboard.writeText(shareText + '\n' + window.location.origin)
+      alert('已复制到剪贴板，快去分享吧！')
+    } catch {
+      // 最后兜底：用 textarea
+      const ta = document.createElement('textarea')
+      ta.value = shareText + '\n' + window.location.origin
+      document.body.appendChild(ta)
+      ta.select()
+      document.execCommand('copy')
+      document.body.removeChild(ta)
+      alert('已复制到剪贴板，快去分享吧！')
+    }
+  }
 
   const renderGroup = (title: string, type: string, getValue: (a: Achievement) => number) => {
     const items = ACHIEVEMENTS.filter(a => a.type === type)
@@ -166,6 +198,12 @@ export default function AchievementPage() {
 
         {/* 成就分组 */}
         <div className="pb-4">
+          {/* 分享按钮 */}
+          <button onClick={handleShare}
+            className="w-full py-3.5 rounded-2xl font-semibold text-base bg-gradient-to-r from-amber-400 to-orange-400 text-white shadow-lg shadow-orange-500/30 flex items-center justify-center gap-2 mb-4 active:scale-[0.98] transition-transform">
+            <Share2 size={18} /> 分享成就给朋友
+          </button>
+
           {renderGroup('识字里程碑', 'learned', a => stats.totalLearned)}
           {renderGroup('连续学习', 'streak', a => stats.streak)}
           {renderGroup('完美练习', 'perfect', a => stats.perfectCount)}
@@ -173,7 +211,7 @@ export default function AchievementPage() {
         </div>
       </div>
 
-      <BottomNav active="parent" />
+      <BottomNav active="achievement" />
     </div>
   )
 }
