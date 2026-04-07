@@ -1,12 +1,15 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
-import { BookOpen, PencilLine, ChevronLeft, ChevronRight, Eye, CheckCircle2, Lightbulb, PenTool, Tag, Layers, RotateCcw, Home, Sparkles, Volume2 } from 'lucide-react'
+import dynamic from 'next/dynamic'
+import { BookOpen, PencilLine, ChevronLeft, ChevronRight, Eye, CheckCircle2, Lightbulb, PenTool, Tag, Layers, RotateCcw, Home, Sparkles, Volume2, Play } from 'lucide-react'
 import BottomNav from '../../components/BottomNav'
 import { getLocalDate, getYesterdayDate } from '../../lib/utils'
 import { useTTS } from '../../lib/useTTS'
+
+const HanziWriter = dynamic(() => import('../../components/HanziWriter'), { ssr: false })
 
 interface CharData {
   id: number; character: string; pinyin: string; meaning: string
@@ -30,6 +33,7 @@ export default function Learn() {
   const [currentLevel, setCurrentLevel] = useState(1)
   const [reviewCompleted, setReviewCompleted] = useState(0)
   const { speak, speaking } = useTTS()
+  const writerRef = useRef<any>(null)
 
   const [userId] = useState(() => {
     if (typeof window !== 'undefined') {
@@ -322,19 +326,44 @@ export default function Learn() {
             <div className="absolute top-4 right-4">
               <span className="bg-white text-xs font-medium px-3 py-1 rounded-full text-gray-500">{currentChar.category}</span>
             </div>
-            <div className="pt-4">
-              <div className="flex items-center justify-center gap-3">
-                <div className="text-[72px] sm:text-[88px] md:text-[100px] font-bold text-gray-800 leading-none select-none">{currentChar.character}</div>
+            <div className="pt-2 flex flex-col items-center">
+              <div className="flex items-center gap-3">
+                <div className="relative">
+                  <HanziWriter
+                    ref={writerRef}
+                    character={currentChar.character}
+                    width={160}
+                    height={160}
+                    padding={10}
+                    strokeColor="#374151"
+                    outlineColor="#E5E7EB"
+                    radicalColor="#F59E0B"
+                    showOutline={true}
+                    showCharacter={false}
+                    autoAnimate={true}
+                    animateSpeed={1}
+                    delayBetweenStrokes={150}
+                  />
+                </div>
+              </div>
+              <div className="flex items-center gap-3 mt-3">
+                <div className="text-2xl font-medium text-orange-500">{currentChar.pinyin}</div>
                 <button
                   onClick={(e) => { e.stopPropagation(); speak(currentChar.character, currentChar.audio_url) }}
-                  className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 transition-all ${
+                  className={`w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 transition-all ${
                     speaking ? 'bg-orange-500 text-white scale-110' : 'bg-orange-50 text-orange-400 active:scale-95'
                   }`}
                 >
-                  <Volume2 size={20} />
+                  <Volume2 size={18} />
+                </button>
+                <button
+                  onClick={(e) => { e.stopPropagation(); writerRef.current?.animate() }}
+                  className="w-9 h-9 rounded-full bg-gray-50 text-gray-400 flex items-center justify-center flex-shrink-0 active:scale-95 transition-all hover:bg-gray-100"
+                  title="重播笔顺"
+                >
+                  <Play size={16} />
                 </button>
               </div>
-              <div className="text-2xl font-medium text-orange-500 mt-3">{currentChar.pinyin}</div>
             </div>
             {/* 底部提示 */}
             <div className="mt-4 text-xs text-gray-300">点击继续 →</div>
