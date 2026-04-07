@@ -134,7 +134,7 @@ export default function Learn() {
     const newCount = existingCount + 1
 
     // 计算下次复习时间
-    const nextReview = isReview ? getNextReview(newCount) : Date.now() + 3600000
+    const nextReview = getNextReview(isReview ? newCount : 0)
     const status = newCount >= 5 ? 'mastered' : 'learning'
 
     // 写入 localStorage + Context

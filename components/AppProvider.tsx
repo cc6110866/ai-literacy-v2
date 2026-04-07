@@ -40,6 +40,8 @@ interface AppContextValue {
   updateStreak: () => void
   /** 刷新今日数据（从 localStorage 重新读取） */
   refresh: () => void
+  /** 直接更新 progress 对象（同时写 localStorage） */
+  updateProgress: (updater: (prev: AppStats['progress']) => AppStats['progress']) => void
 }
 
 const AppContext = createContext<AppContextValue | null>(null)
@@ -174,6 +176,14 @@ export default function AppProvider({ children }: { children: ReactNode }) {
     setStats(loadInitialState())
   }, [])
 
+  const updateProgress = useCallback((updater: (prev: AppStats['progress']) => AppStats['progress']) => {
+    setStats(prev => {
+      const newProgress = updater(prev.progress)
+      localStorage.setItem('ai-literacy-progress', JSON.stringify(newProgress))
+      return { ...prev, progress: newProgress }
+    })
+  }, [])
+
   const refreshToday = useCallback(() => {
     const today = getLocalDate()
     setStats(prev => ({
@@ -188,7 +198,7 @@ export default function AppProvider({ children }: { children: ReactNode }) {
   }, [])
 
   return (
-    <AppContext.Provider value={{ stats, setStats, refreshToday, markLearned, recordAnswer, updateStreak, refresh }}>
+    <AppContext.Provider value={{ stats, setStats, refreshToday, markLearned, recordAnswer, updateStreak, refresh, updateProgress }}>
       {children}
     </AppContext.Provider>
   )

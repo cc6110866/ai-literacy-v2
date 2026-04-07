@@ -52,10 +52,8 @@ export default function Parent() {
     function loadParentData() {
       try {
         // 统一从 localStorage 读取（与首页、识字页一致）
-        const learnedStr = localStorage.getItem('ai-literacy-learned') || '[]'
-        const learnedIds: number[] = JSON.parse(learnedStr)
-        const progressStr = localStorage.getItem('ai-literacy-progress') || '{}'
-        const progress: Record<string, { status: string; count: number }> = JSON.parse(progressStr)
+        const learnedIds = ctxStats.learnedIds
+        const progress = ctxStats.progress
 
         const totalLearned = learnedIds.length
         const mastered = learnedIds.filter(id => progress[id]?.status === 'mastered' || (progress[id]?.count || 0) >= 5).length
@@ -66,9 +64,9 @@ export default function Parent() {
         const todayKey = `ai-literacy-today-learned-${today}`
         const todayIds: number[] = JSON.parse(localStorage.getItem(todayKey) || '[]')
         const todayNew = todayIds.length
-        const todayReview = parseInt(localStorage.getItem(`ai-literacy-today-review-count-${today}`) || '0')
-        const todayCorrect = parseInt(localStorage.getItem(`ai-literacy-today-correct-${today}`) || '0')
-        const todayTotal = parseInt(localStorage.getItem(`ai-literacy-today-total-${today}`) || '0')
+        const todayReview = ctxStats.today.reviewCount
+        const todayCorrect = ctxStats.today.correctCount
+        const todayTotal = ctxStats.today.totalCount
         const todayRate = todayTotal > 0 ? todayCorrect / todayTotal : 0
 
         // 级别进度
@@ -107,7 +105,7 @@ export default function Parent() {
         // 从 progress 中找未掌握的字（需要复习的 = 相对薄弱的）
         const weakChars = learnedIds
           .filter(id => {
-            const p = progress[String(id)]
+            const p = progress[id as number]
             return p && p.status !== 'mastered' && (p.count || 0) > 0
           })
           .slice(0, 10)
@@ -133,8 +131,7 @@ export default function Parent() {
         const todayTime = weekData.length > 0 ? weekData[weekData.length - 1].total * 30 : 0
         setStudyTime({ today: todayTime, total: totalTime * 30 })
       } catch {
-        const learnedStr = localStorage.getItem('ai-literacy-learned') || '[]'
-        setStats(prev => ({ ...prev, totalLearned: JSON.parse(learnedStr).length }))
+        setStats(prev => ({ ...prev, totalLearned: ctxStats.learnedIds.length }))
       } finally { setLoading(false) }
     }
     loadParentData()

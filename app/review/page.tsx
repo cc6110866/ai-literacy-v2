@@ -40,7 +40,7 @@ export default function Review() {
   const { schedulePush } = useCloudSync()
   const writerRef = useRef<any>(null)
   const autoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const { stats: ctxStats, recordAnswer } = useAppContext()
+  const { stats: ctxStats, updateProgress, recordAnswer } = useAppContext()
   const userId = ctxStats.userId
 
   const API = ''
@@ -91,17 +91,18 @@ export default function Review() {
     if (!char) return
     playSound(correct ? 'correct' : 'wrong')
     setResults(prev => [...prev, { charId: char.id, correct }])
-    // Update progress in localStorage (review page needs direct write for merge logic)
-    const progressStr = localStorage.getItem('ai-literacy-progress') || '{}'
-    const progress: Record<number, { nextReview: number; status: string; count: number }> = JSON.parse(progressStr)
-    const count = progress[char.id]?.count || 0
-    if (correct) {
-      const newCount = count + 1
-      progress[char.id] = { nextReview: getNextReview(newCount), status: isMastered(newCount) ? 'mastered' : 'learning', count: newCount }
-    } else {
-      progress[char.id] = { nextReview: getNextReview(0), status: 'learning', count: Math.max(0, count - 1) }
-    }
-    localStorage.setItem('ai-literacy-progress', JSON.stringify(progress))
+    // Update progress via Context
+    updateProgress(prev => {
+      const count = prev[char.id]?.count || 0
+      const newPrev = { ...prev }
+      if (correct) {
+        const newCount = count + 1
+        newPrev[char.id] = { nextReview: getNextReview(newCount), status: isMastered(newCount) ? 'mastered' : 'learning', count: newCount }
+      } else {
+        newPrev[char.id] = { nextReview: getNextReview(0), status: 'learning', count: Math.max(0, count - 1) }
+      }
+      return newPrev
+    })
     recordAnswer(correct, true)
     fetch(`${API}/api/progress`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId, characterId: char.id, status: 'learning', practiceCount: 1, correctCount: correct ? 1 : 0, isCorrect: correct, isReview: true }) }).catch(() => {})
     schedulePush()
