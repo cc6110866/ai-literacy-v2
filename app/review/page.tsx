@@ -10,6 +10,8 @@ import { getLocalDate } from '../../lib/utils'
 import { useTTS } from '../../lib/useTTS'
 import { useSound } from '../../lib/useSound'
 import { useCloudSync } from '../../lib/useCloudSync'
+import { useAppContext } from '../../components/AppProvider'
+import { getNextReview, isMastered } from '../../lib/spaced-repetition'
 
 const HanziWriter = dynamic(() => import('../../components/HanziWriter'), { ssr: false })
 
@@ -38,20 +40,15 @@ export default function Review() {
   const { schedulePush } = useCloudSync()
   const writerRef = useRef<any>(null)
   const autoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const [userId] = useState(() => {
-    if (typeof window !== 'undefined') {
-      return localStorage.getItem('ai-literacy-uid') || 'anonymous'
-    }
-    return 'anonymous'
-  })
+  const { stats: ctxStats, recordAnswer } = useAppContext()
+  const userId = ctxStats.userId
 
   const API = ''
 
   async function loadReview() {
     setLoading(true)
     try {
-      const progressStr = localStorage.getItem('ai-literacy-progress') || '{}'
-      const progress: Record<number, { nextReview: number; status: string }> = JSON.parse(progressStr)
+      const progress = ctxStats.progress
       const now = Date.now()
       const dueIds: number[] = []
       for (const [idStr, p] of Object.entries(progress)) {
@@ -94,28 +91,18 @@ export default function Review() {
     if (!char) return
     playSound(correct ? 'correct' : 'wrong')
     setResults(prev => [...prev, { charId: char.id, correct }])
+    // Update progress in localStorage (review page needs direct write for merge logic)
     const progressStr = localStorage.getItem('ai-literacy-progress') || '{}'
     const progress: Record<number, { nextReview: number; status: string; count: number }> = JSON.parse(progressStr)
-    const intervals = [3600000, 86400000, 259200000, 604800000, 1296000000, 2592000000]
     const count = progress[char.id]?.count || 0
     if (correct) {
-      const intervalIndex = Math.min(count, intervals.length - 1)
-      progress[char.id] = { nextReview: Date.now() + intervals[intervalIndex], status: count >= 4 ? 'mastered' : 'learning', count: count + 1 }
+      const newCount = count + 1
+      progress[char.id] = { nextReview: getNextReview(newCount), status: isMastered(newCount) ? 'mastered' : 'learning', count: newCount }
     } else {
-      progress[char.id] = { nextReview: Date.now() + intervals[0], status: 'learning', count: Math.max(0, count - 1) }
+      progress[char.id] = { nextReview: getNextReview(0), status: 'learning', count: Math.max(0, count - 1) }
     }
     localStorage.setItem('ai-literacy-progress', JSON.stringify(progress))
-    const reviewCnt = parseInt(localStorage.getItem('ai-literacy-review-count') || '0') + 1
-    localStorage.setItem('ai-literacy-review-count', String(reviewCnt))
-    const today = getLocalDate()
-    const todayReviewKey = `ai-literacy-today-review-count-${today}`
-    const todayReviewCnt = parseInt(localStorage.getItem(todayReviewKey) || '0') + 1
-    localStorage.setItem(todayReviewKey, String(todayReviewCnt))
-    // 同步今日正确率
-    const correctKey = `ai-literacy-today-correct-${today}`
-    const totalKey = `ai-literacy-today-total-${today}`
-    localStorage.setItem(correctKey, String(parseInt(localStorage.getItem(correctKey) || '0') + (correct ? 1 : 0)))
-    localStorage.setItem(totalKey, String(parseInt(localStorage.getItem(totalKey) || '0') + 1))
+    recordAnswer(correct, true)
     fetch(`${API}/api/progress`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId, characterId: char.id, status: 'learning', practiceCount: 1, correctCount: correct ? 1 : 0, isCorrect: correct, isReview: true }) }).catch(() => {})
     schedulePush()
     if (currentIndex < reviewChars.length - 1) {

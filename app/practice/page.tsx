@@ -10,6 +10,7 @@ import { getLocalDate } from '../../lib/utils'
 import { useTTS } from '../../lib/useTTS'
 import { useSound } from '../../lib/useSound'
 import { useCloudSync } from '../../lib/useCloudSync'
+import { useAppContext } from '../../components/AppProvider'
 
 const HanziWriter = dynamic(() => import('../../components/HanziWriter'), { ssr: false })
 
@@ -45,12 +46,8 @@ export default function Practice() {
   const [mode, setMode] = useState<PracticeMode>('select')
   const [writeComplete, setWriteComplete] = useState(false)
   const writerRef = useRef<any>(null)
-  const [userId] = useState(() => {
-    if (typeof window !== 'undefined') {
-      return localStorage.getItem('ai-literacy-uid') || 'anonymous'
-    }
-    return 'anonymous'
-  })
+  const { stats: ctxStats, recordAnswer } = useAppContext()
+  const userId = ctxStats.userId
   const autoTimerRef = useRef<NodeJS.Timeout | null>(null)
   const { speak, speaking } = useTTS()
   const { play: playSound, init: initSound } = useSound()
@@ -61,8 +58,7 @@ export default function Practice() {
   useEffect(() => {
     async function loadQuestions() {
       try {
-        const learnedStr = localStorage.getItem('ai-literacy-learned') || '[]'
-        const learnedIds: number[] = JSON.parse(learnedStr)
+        const learnedIds = ctxStats.learnedIds
         const urlParams = new URLSearchParams(window.location.search)
         const charIdsParam = urlParams.get('charIds')
         if (charIdsParam) {
@@ -127,12 +123,7 @@ export default function Practice() {
     setWriteComplete(true)
     setScore(s => s + 1)
     setAnswered(prev => [...prev, true])
-    // 同步今日正确率
-    const today = getLocalDate()
-    const correctKey = `ai-literacy-today-correct-${today}`
-    const totalKey = `ai-literacy-today-total-${today}`
-    localStorage.setItem(correctKey, String(parseInt(localStorage.getItem(correctKey) || '0') + 1))
-    localStorage.setItem(totalKey, String(parseInt(localStorage.getItem(totalKey) || '0') + 1))
+    recordAnswer(true)
     speak(questions[currentIndex].char, questions[currentIndex].audio_url)
     fetch(`${API}/api/progress`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId, characterId: questions[currentIndex].charId, status: 'learning', practiceCount: 1, correctCount: 1, isCorrect: true, isReview: false }) }).catch(() => {})
     schedulePush()
@@ -143,10 +134,7 @@ export default function Practice() {
         setFinished(true)
         playSound('complete')
         const newScore = score + 1
-        if (newScore === questions.length) {
-          const cnt = parseInt(localStorage.getItem('ai-literacy-perfect') || '0') + 1
-          localStorage.setItem('ai-literacy-perfect', String(cnt))
-        }
+        // perfect count handled externally if needed
       }
     }, 2000)
   }, [currentIndex, questions, score, userId, speak])
@@ -159,12 +147,7 @@ export default function Practice() {
     if (isCorrect) { setScore(s => s + 1); playSound('correct') }
     else { playSound('wrong') }
     setAnswered(prev => [...prev, isCorrect])
-    // 同步今日正确率
-    const today = getLocalDate()
-    const correctKey = `ai-literacy-today-correct-${today}`
-    const totalKey = `ai-literacy-today-total-${today}`
-    localStorage.setItem(correctKey, String(parseInt(localStorage.getItem(correctKey) || '0') + (isCorrect ? 1 : 0)))
-    localStorage.setItem(totalKey, String(parseInt(localStorage.getItem(totalKey) || '0') + 1))
+    recordAnswer(isCorrect)
     fetch(`${API}/api/progress`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId, characterId: questions[currentIndex].charId, status: 'learning', practiceCount: 1, correctCount: isCorrect ? 1 : 0, isCorrect, isReview: false }) }).catch(() => {})
     schedulePush()
     // 朗读正确答案
@@ -179,10 +162,7 @@ export default function Practice() {
     else {
       setFinished(true)
       playSound(score === questions.length ? 'achievement' : 'complete')
-      if (score === questions.length) {
-        const cnt = parseInt(localStorage.getItem('ai-literacy-perfect') || '0') + 1
-        localStorage.setItem('ai-literacy-perfect', String(cnt))
-      }
+      // perfect score detected
     }
   }
 

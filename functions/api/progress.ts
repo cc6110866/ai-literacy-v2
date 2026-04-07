@@ -235,8 +235,8 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     const inputPractice = practiceCount ?? 1
 
     // 计算复习间隔（艾宾浩斯）
-    const intervals = [3600000, 86400000, 259200000, 604800000, 1296000000, 2592000000]
-    const nextReviewDate = new Date(Date.now() + intervals[0]) // 1小时后
+    const REVIEW_INTERVALS = [3600000, 86400000, 259200000, 604800000, 1296000000, 2592000000]
+    const nextReviewDate = new Date(Date.now() + REVIEW_INTERVALS[0]) // 1小时后
 
     // 检查是否已存在
     const existing: any = await env.DB.prepare(
@@ -250,8 +250,8 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       const newStatus = newPracticeCount >= 5 ? 'mastered' : inputStatus
 
       // 根据已复习次数确定间隔
-      let intervalIndex = Math.min(newReviewCount, intervals.length - 1)
-      const nextReview = new Date(Date.now() + intervals[intervalIndex]).toISOString()
+      const REVIEW_INTERVALS_SYNC = [3600000, 86400000, 259200000, 604800000, 1296000000, 2592000000]
+      const nextReview = new Date(Date.now() + REVIEW_INTERVALS_SYNC[Math.min(newReviewCount, REVIEW_INTERVALS_SYNC.length - 1)]).toISOString()
 
       await env.DB.prepare(`
         UPDATE Progress SET

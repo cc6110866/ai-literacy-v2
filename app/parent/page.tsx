@@ -5,6 +5,7 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { Users, ChevronLeft, BarChart3, Settings, Target, Flame, Lightbulb, Info, Trophy, AlertCircle, Clock } from 'lucide-react'
 import BottomNav from '../../components/BottomNav'
+import { useAppContext } from '../../components/AppProvider'
 import { getLocalDate, getDateDaysAgo } from '../../lib/utils'
 
 interface WeekDay { date: string; newCount: number; reviewCount: number; total: number; correctRate: number }
@@ -34,22 +35,16 @@ export default function Parent() {
   const [difficultyMode, setDifficultyMode] = useState('normal')
   const [forceLevel, setForceLevel] = useState(0)
 
-  const [userId] = useState(() => {
-    if (typeof window !== 'undefined') {
-      let uid = localStorage.getItem('ai-literacy-uid')
-      if (!uid) { uid = 'user_' + Math.random().toString(36).slice(2, 10); localStorage.setItem('ai-literacy-uid', uid) }
-      return uid
-    }
-    return 'anonymous'
-  })
+  const { stats: ctxStats } = useAppContext()
+  const userId = ctxStats.userId
 
   const API = ''
 
   useEffect(() => {
+    setDailyTarget(ctxStats.dailyTarget)
+    setForceLevel(ctxStats.forceLevel)
     if (typeof window !== 'undefined') {
-      setDailyTarget(parseInt(localStorage.getItem('ai-literacy-daily-target') || '5'))
       setDifficultyMode(localStorage.getItem('ai-literacy-mode') || 'normal')
-      setForceLevel(parseInt(localStorage.getItem('ai-literacy-force-level') || '0'))
     }
   }, [])
 
@@ -64,7 +59,7 @@ export default function Parent() {
 
         const totalLearned = learnedIds.length
         const mastered = learnedIds.filter(id => progress[id]?.status === 'mastered' || (progress[id]?.count || 0) >= 5).length
-        const streak = parseInt(localStorage.getItem('ai-literacy-streak') || '0')
+        const streak = ctxStats.streak
 
         // 今日数据
         const today = getLocalDate()

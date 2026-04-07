@@ -10,6 +10,8 @@ import { getLocalDate, getYesterdayDate } from '../../lib/utils'
 import { useTTS } from '../../lib/useTTS'
 import { useSound } from '../../lib/useSound'
 import { useCloudSync } from '../../lib/useCloudSync'
+import { getNextReview, isMastered } from '../../lib/spaced-repetition'
+import { useAppContext } from '../../components/AppProvider'
 
 const HanziWriter = dynamic(() => import('../../components/HanziWriter'), { ssr: false })
 
@@ -39,25 +41,17 @@ export default function Learn() {
   const { schedulePush } = useCloudSync()
   const writerRef = useRef<any>(null)
 
-  const [userId] = useState(() => {
-    if (typeof window !== 'undefined') {
-      let uid = localStorage.getItem('ai-literacy-uid')
-      if (!uid) { uid = 'user_' + Math.random().toString(36).slice(2, 10); localStorage.setItem('ai-literacy-uid', uid) }
-      return uid
-    }
-    return 'anonymous'
-  })
+  const { stats: ctxStats, markLearned: ctxMarkLearned, recordAnswer, updateStreak } = useAppContext()
+  const userId = ctxStats.userId
 
   const API = ''
 
   useEffect(() => {
     async function loadData() {
       try {
-        const learnedStr = localStorage.getItem('ai-literacy-learned') || '[]'
-        const learnedIds: number[] = JSON.parse(learnedStr)
+        const learnedIds = ctxStats.learnedIds
         setLearned(new Set(learnedIds))
-        const progressStr = localStorage.getItem('ai-literacy-progress') || '{}'
-        const progress: Record<number, { nextReview: number; status: string }> = JSON.parse(progressStr)
+        const progress = ctxStats.progress
         const now = Date.now()
         const dueIds: number[] = []
         for (const [idStr, p] of Object.entries(progress)) {
@@ -76,9 +70,9 @@ export default function Learn() {
     }
     async function loadNewChars(learnedIds: number[]) {
       const today = getLocalDate()
-      const dailyTarget = parseInt(localStorage.getItem('ai-literacy-daily-target') || '5')
+      const dailyTarget = ctxStats.dailyTarget
       const cached = localStorage.getItem(`ai-literacy-today-${today}`)
-      const forceLevel = parseInt(localStorage.getItem('ai-literacy-force-level') || '0')
+      const forceLevel = ctxStats.forceLevel
       if (cached) {
         try {
           const data = JSON.parse(cached)
@@ -136,62 +130,21 @@ export default function Learn() {
 
   const markLearned = useCallback((charId: number, isReview: boolean = false) => {
     setLearned(prev => new Set(prev).add(charId))
-    const learnedStr = localStorage.getItem('ai-literacy-learned') || '[]'
-    const learnedIds: number[] = JSON.parse(learnedStr)
-    const isNew = !learnedIds.includes(charId)
-    if (isNew) { learnedIds.push(charId); localStorage.setItem('ai-literacy-learned', JSON.stringify(learnedIds)) }
-    const progressStr = localStorage.getItem('ai-literacy-progress') || '{}'
-    const progress: Record<number, { nextReview: number; status: string; count: number }> = JSON.parse(progressStr)
-    const existingCount = progress[charId]?.count || 0
+    const existingCount = ctxStats.progress[charId]?.count || 0
     const newCount = existingCount + 1
 
-    if (isReview) {
-      // 复习阶段：用艾宾浩斯间隔，答对增加间隔
-      const intervals = [3600000, 86400000, 259200000, 604800000, 1296000000, 2592000000]
-      const intervalIndex = Math.min(existingCount, intervals.length - 1)
-      progress[charId] = { nextReview: Date.now() + intervals[intervalIndex], status: newCount >= 5 ? 'mastered' : 'learning', count: newCount }
-    } else {
-      // 新学阶段：每次 +1，nextReview 1小时后
-      progress[charId] = { nextReview: Date.now() + 3600000, status: newCount >= 5 ? 'mastered' : 'learning', count: newCount }
-    }
-    localStorage.setItem('ai-literacy-progress', JSON.stringify(progress))
+    // 计算下次复习时间
+    const nextReview = isReview ? getNextReview(newCount) : Date.now() + 3600000
+    const status = newCount >= 5 ? 'mastered' : 'learning'
 
-    // 同步首页需要的今日数据
-    const today = getLocalDate()
-    const todayKey = `ai-literacy-today-learned-${today}`
-    const todayIds: number[] = JSON.parse(localStorage.getItem(todayKey) || '[]')
-    if (!todayIds.includes(charId)) { todayIds.push(charId); localStorage.setItem(todayKey, JSON.stringify(todayIds)) }
+    // 写入 localStorage + Context
+    ctxMarkLearned(charId, nextReview, status, newCount)
+    recordAnswer(true, isReview)
+    updateStreak()
 
-    // 更新连续学习天数
-    const lastStudyDate = localStorage.getItem('ai-literacy-last-study-date') || ''
-    const yesterdayStr = getYesterdayDate()
-    let streak = parseInt(localStorage.getItem('ai-literacy-streak') || '0')
-    if (lastStudyDate === yesterdayStr || lastStudyDate === today) {
-      if (lastStudyDate !== today) streak++
-      localStorage.setItem('ai-literacy-streak', String(streak))
-    } else if (lastStudyDate !== today) {
-      localStorage.setItem('ai-literacy-streak', '1')
-    }
-    localStorage.setItem('ai-literacy-last-study-date', today)
-
-    // 同步今日正确率（识字页默认答对）
-    const correctKey = `ai-literacy-today-correct-${today}`
-    const totalKey = `ai-literacy-today-total-${today}`
-    localStorage.setItem(correctKey, String(parseInt(localStorage.getItem(correctKey) || '0') + 1))
-    localStorage.setItem(totalKey, String(parseInt(localStorage.getItem(totalKey) || '0') + 1))
-
-    // 复习阶段同步复习计数
-    if (isReview) {
-      const todayReviewKey = `ai-literacy-today-review-count-${today}`
-      const todayReviewCnt = parseInt(localStorage.getItem(todayReviewKey) || '0') + 1
-      localStorage.setItem(todayReviewKey, String(todayReviewCnt))
-      const reviewTotal = parseInt(localStorage.getItem('ai-literacy-review-count') || '0') + 1
-      localStorage.setItem('ai-literacy-review-count', String(reviewTotal))
-    }
-
-    fetch(`${API}/api/progress`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId, characterId: charId, status: newCount >= 5 ? 'mastered' : 'learning', practiceCount: 1, correctCount: 1, isCorrect: true, isReview }) }).catch(() => {})
+    fetch(`${API}/api/progress`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId, characterId: charId, status, practiceCount: 1, correctCount: 1, isCorrect: true, isReview }) }).catch(() => {})
     schedulePush()
-  }, [userId])
+  }, [userId, ctxStats.progress, ctxMarkLearned, recordAnswer, updateStreak, schedulePush])
 
   const nextChar = () => {
     playSound('click')

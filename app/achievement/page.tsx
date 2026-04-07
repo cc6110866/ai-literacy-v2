@@ -5,6 +5,7 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { Trophy, ChevronLeft, Flame, Star, BookOpen, CheckCircle2, Share2 } from 'lucide-react'
 import BottomNav from '../../components/BottomNav'
+import { useAppContext } from '../../components/AppProvider'
 
 interface Achievement {
   id: string; icon: string; name: string; desc: string; target: number; type: 'learned' | 'streak' | 'perfect' | 'review'
@@ -31,6 +32,7 @@ const ACHIEVEMENTS: Achievement[] = [
 ]
 
 export default function AchievementPage() {
+  const { stats: ctxStats } = useAppContext()
   const [unlocked, setUnlocked] = useState<Set<string>>(new Set())
   const [stats, setStats] = useState({ totalLearned: 0, streak: 0, perfectCount: 0, reviewCount: 0 })
   const [loading, setLoading] = useState(true)
